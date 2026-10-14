@@ -97,6 +97,8 @@ src/main/java/br/edu/utfpr/sd/ep1/
   Servidor.java            Porta TCP e configuração JDBC
   ServidorTcp.java         Sockets e threads
   Protocolo.java           JSON estrito, UTF-8, LF e limite de bytes
+  ValidacaoResposta.java   Status/message e campos das respostas da EP-1
+  ErroProtocoloException.java Resposta invalida, sem reenvio automatico
   UsuarioService.java      Regras das seis operações
   Banco.java               Modelos de usuário e sessão usados nas transações
   RepositorioUsuarios.java Contrato do repositório
@@ -125,6 +127,8 @@ Referências incluídas: [AsyncAPI v2.4.0](docs/asyncapi.yaml) e [critérios da 
 
 Mensagens: objeto JSON estrito, UTF-8, uma linha terminada por LF, até 8.192 bytes incluindo LF. Campos conhecidos são strings; números/booleanos não são convertidos. Toda resposta usa `op`, `status` e `message` com os textos do contrato. Campos desconhecidos são ignorados, exceto `email` nas atualizações, que é proibido.
 
+Chaves JSON repetidas são rejeitadas para evitar interpretações diferentes entre bibliotecas. O cliente valida as respostas, incluindo campos obrigatórios de sucesso. Respostas completas inválidas, erro genérico 400 ou erro de negócio/servidor não provocam reenvio automático; falhas de conexão ou resposta interrompida permitem uma reconexão. Chamadas no mesmo cliente são serializadas, e dados extras já pendentes na conexão são rejeitados antes de novo envio.
+
 Regras principais: nome/e-mail únicos; e-mail imutável; nome com 1–30 letras minúsculas; senha alfanumérica com 1–20 caracteres. Atualização totalmente vazia responde 400. Senha errada ao excluir responde 403 e mantém a sessão. O ID interno é estável: mudar o nome preserva o token.
 
 Token tem 64 caracteres hexadecimais minúsculos e expira após 30 minutos sem uso. A conexão fecha após 300 segundos de inatividade, preservando a sessão. O cliente reconecta e reenvia uma vez ao perder a conexão e aguarda confirmação do logout antes de descartar o token. Sair pelo menu com sessão ativa faz logout.
@@ -147,6 +151,8 @@ Administração, salas e reservas ficam para as próximas entregas. A exclusão 
 ```
 
 Os testes exigem o MySQL iniciado. Usam e limpam exclusivamente `ep1_reserva_salas_teste`; o código rejeita qualquer outro nome de banco para a bateria. Cobrem as seis operações, persistência entre instâncias, validade/renovação de sessão com relógio controlado, rollback, restrições SQL, exclusão de sessão em cascata, concorrência entre dois servidores, limite de bytes, JSON inválido, fragmentação TCP, reconexão e menu do cliente. Não requerem JUnit.
+
+O script executa duas baterias em sequência e utiliza um lock no MySQL para impedir que outra bateria limpe o banco durante a execução. A bateria adicional inclui servidores simulados, respostas inválidas/perdidas, timeouts, 16 clientes concorrentes e as 29 variantes canônicas de resposta da EP-1. Resultado desta revisão: **557 verificações aprovadas**, com 33 cenários adicionais de comunicação. Os detalhes, correções e limitações estão no [relatório de testes](docs/RELATORIO_TESTES.md).
 
 Para executar classes já compiladas:
 

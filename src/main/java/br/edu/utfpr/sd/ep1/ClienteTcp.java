@@ -7,19 +7,27 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.CharacterCodingException;
 
-/** Transporte sincrono. Reconecta e reenvia uma vez quando a conexao falha. */
+/** Transporte sincrono. Reenvia por falha de conexao; resposta invalida nao e reenviada. */
 public final class ClienteTcp implements AutoCloseable {
     private final String host;
     private final int porta;
     private final PrintStream log;
+    private final int timeoutMs;
     private Socket socket;
     private BufferedInputStream entrada;
 
     public ClienteTcp(String host, int porta, PrintStream log) {
+        this(host, porta, log, 10_000);
+    }
+
+    ClienteTcp(String host, int porta, PrintStream log, int timeoutMs) {
+        if (timeoutMs <= 0) throw new IllegalArgumentException("Timeout deve ser positivo");
         this.host = host;
         this.porta = porta;
         this.log = log;
+        this.timeoutMs = timeoutMs;
     }
 
     private void conectar() throws IOException {
@@ -27,7 +35,7 @@ public final class ClienteTcp implements AutoCloseable {
         Socket novo = new Socket();
         try {
             novo.connect(new InetSocketAddress(host, porta), 5000);
-            novo.setSoTimeout(10_000);
+            novo.setSoTimeout(timeoutMs);
             entrada = new BufferedInputStream(novo.getInputStream());
             socket = novo;
         } catch (IOException | RuntimeException e) {
@@ -36,28 +44,34 @@ public final class ClienteTcp implements AutoCloseable {
         }
     }
 
-    public JsonObject enviar(JsonObject req) throws IOException {
+    public synchronized JsonObject enviar(JsonObject req) throws IOException {
+        // Falha local antes de abrir conexao. Mantem os mesmos bytes no reenvio.
+        byte[] bytes = Protocolo.codificar(req);
         for (int tentativa = 0; tentativa < 2; tentativa++) {
             try {
                 conectar();
+                if (entrada.available() > 0) throw new ErroProtocoloException("Dados recebidos sem uma requisicao pendente");
                 log.println("C -> S " + Protocolo.GSON.toJson(req));
-                Protocolo.enviar(socket.getOutputStream(), req);
+                socket.getOutputStream().write(bytes);
+                socket.getOutputStream().flush();
                 Protocolo.Linha linha = Protocolo.ler(entrada);
                 if (linha == null) throw new EOFException("Servidor fechou a conexao sem resposta");
-                if (linha.excedida()) throw new IOException("Resposta excede o limite de bytes");
-                String texto = linha.texto();
-                log.println("S -> C " + texto);
+                if (linha.excedida()) throw new ErroProtocoloException("Resposta excede o limite de bytes");
                 JsonObject resposta;
-                try { resposta = Protocolo.interpretar(texto); }
-                catch (RuntimeException e) { throw new IOException("Resposta JSON invalida", e); }
-                String op = Protocolo.string(resposta, "op");
-                if (!(Protocolo.string(req, "op") + "_response").equals(op)
-                        || Protocolo.string(resposta, "status") == null || Protocolo.string(resposta, "message") == null) {
-                    throw new IOException("Resposta fora do protocolo da operacao");
+                try {
+                    String texto = linha.texto();
+                    log.println("S -> C " + texto);
+                    resposta = Protocolo.interpretar(texto);
+                } catch (CharacterCodingException | RuntimeException e) {
+                    throw new ErroProtocoloException("Resposta JSON/UTF-8 invalida", e);
                 }
+                ValidacaoResposta.conferir(req, resposta);
                 return resposta;
+            } catch (ErroProtocoloException e) {
+                fecharAposFalha(e);
+                throw e;
             } catch (IOException e) {
-                close();
+                fecharAposFalha(e);
                 if (tentativa == 1) throw e;
                 log.println("Conexao interrompida; reconectando e reenviando a mesma requisicao...");
             }
@@ -65,8 +79,12 @@ public final class ClienteTcp implements AutoCloseable {
         throw new IOException("Sem resposta");
     }
 
+    private void fecharAposFalha(IOException original) {
+        try { close(); } catch (IOException e) { original.addSuppressed(e); }
+    }
+
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         Socket anterior = socket;
         socket = null;
         entrada = null;

@@ -1,0 +1,391 @@
+{
+  "fonte": "docs/asyncapi.yaml",
+  "versao": "2.4.0",
+  "casos": [
+    {
+      "operacao": "register",
+      "requisicao": {
+        "op": "register",
+        "email": "joao.silva@email.com",
+        "user": "joao",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "register_response",
+        "status": "201",
+        "message": "Usuario cadastrado com sucesso"
+      }
+    },
+    {
+      "operacao": "register",
+      "requisicao": {
+        "op": "register",
+        "email": "joao.silva@email.com",
+        "user": "joao",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "register_response",
+        "status": "400",
+        "message": "Dados de cadastro em formato invalido"
+      }
+    },
+    {
+      "operacao": "register",
+      "requisicao": {
+        "op": "register",
+        "email": "joao.silva@email.com",
+        "user": "joao",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "register_response",
+        "status": "409",
+        "message": "Usuario ou email ja cadastrado"
+      }
+    },
+    {
+      "operacao": "register",
+      "requisicao": {
+        "op": "register",
+        "email": "joao.silva@email.com",
+        "user": "joao",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "register_response",
+        "status": "500",
+        "message": "Erro interno do servidor"
+      }
+    },
+    {
+      "operacao": "login",
+      "requisicao": {
+        "op": "login",
+        "email": "joao.silva@email.com",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "login_response",
+        "status": "200",
+        "message": "Login realizado com sucesso",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "role": "user"
+      }
+    },
+    {
+      "operacao": "login",
+      "requisicao": {
+        "op": "login",
+        "email": "joao.silva@email.com",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "login_response",
+        "status": "400",
+        "message": "Email ou senha em formato invalido"
+      }
+    },
+    {
+      "operacao": "login",
+      "requisicao": {
+        "op": "login",
+        "email": "joao.silva@email.com",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "login_response",
+        "status": "401",
+        "message": "Email ou senha incorretos"
+      }
+    },
+    {
+      "operacao": "login",
+      "requisicao": {
+        "op": "login",
+        "email": "joao.silva@email.com",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "login_response",
+        "status": "409",
+        "message": "Usuario ja possui sessao ativa"
+      }
+    },
+    {
+      "operacao": "login",
+      "requisicao": {
+        "op": "login",
+        "email": "joao.silva@email.com",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "login_response",
+        "status": "500",
+        "message": "Erro interno do servidor"
+      }
+    },
+    {
+      "operacao": "logout",
+      "requisicao": {
+        "op": "logout",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "logout_response",
+        "status": "200",
+        "message": "Logout realizado com sucesso"
+      }
+    },
+    {
+      "operacao": "logout",
+      "requisicao": {
+        "op": "logout",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "logout_response",
+        "status": "400",
+        "message": "Token em formato invalido"
+      }
+    },
+    {
+      "operacao": "logout",
+      "requisicao": {
+        "op": "logout",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "logout_response",
+        "status": "401",
+        "message": "Token invalido ou expirado"
+      }
+    },
+    {
+      "operacao": "logout",
+      "requisicao": {
+        "op": "logout",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "logout_response",
+        "status": "500",
+        "message": "Erro interno do servidor"
+      }
+    },
+    {
+      "operacao": "read_user",
+      "requisicao": {
+        "op": "read_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "read_user_response",
+        "status": "200",
+        "message": "Consulta realizada com sucesso",
+        "user": "joao",
+        "email": "joao.silva@email.com",
+        "role": "user",
+        "created_at": "2026-09-09 14:32:10"
+      }
+    },
+    {
+      "operacao": "read_user",
+      "requisicao": {
+        "op": "read_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "read_user_response",
+        "status": "400",
+        "message": "Token em formato invalido"
+      }
+    },
+    {
+      "operacao": "read_user",
+      "requisicao": {
+        "op": "read_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "read_user_response",
+        "status": "401",
+        "message": "Token invalido ou expirado"
+      }
+    },
+    {
+      "operacao": "read_user",
+      "requisicao": {
+        "op": "read_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      },
+      "resposta": {
+        "op": "read_user_response",
+        "status": "500",
+        "message": "Erro interno do servidor"
+      }
+    },
+    {
+      "operacao": "update_user",
+      "requisicao": {
+        "op": "update_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "user": "joao",
+        "password": "novasenha1"
+      },
+      "resposta": {
+        "op": "update_user_response",
+        "status": "200",
+        "message": "Dados atualizados com sucesso"
+      }
+    },
+    {
+      "operacao": "update_user",
+      "requisicao": {
+        "op": "update_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "user": "joao",
+        "password": "novasenha1"
+      },
+      "resposta": {
+        "op": "update_user_response",
+        "status": "400",
+        "message": "Dados em formato invalido"
+      }
+    },
+    {
+      "operacao": "update_user",
+      "requisicao": {
+        "op": "update_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "user": "joao",
+        "password": "novasenha1"
+      },
+      "resposta": {
+        "op": "update_user_response",
+        "status": "400",
+        "message": "Nenhum dado para atualizar"
+      }
+    },
+    {
+      "operacao": "update_user",
+      "requisicao": {
+        "op": "update_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "user": "joao",
+        "password": "novasenha1"
+      },
+      "resposta": {
+        "op": "update_user_response",
+        "status": "401",
+        "message": "Token invalido ou expirado"
+      }
+    },
+    {
+      "operacao": "update_user",
+      "requisicao": {
+        "op": "update_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "user": "joao",
+        "password": "novasenha1"
+      },
+      "resposta": {
+        "op": "update_user_response",
+        "status": "409",
+        "message": "Usuario ja esta em uso"
+      }
+    },
+    {
+      "operacao": "update_user",
+      "requisicao": {
+        "op": "update_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "user": "joao",
+        "password": "novasenha1"
+      },
+      "resposta": {
+        "op": "update_user_response",
+        "status": "500",
+        "message": "Erro interno do servidor"
+      }
+    },
+    {
+      "operacao": "delete_user",
+      "requisicao": {
+        "op": "delete_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "delete_user_response",
+        "status": "200",
+        "message": "Usuario removido com sucesso"
+      }
+    },
+    {
+      "operacao": "delete_user",
+      "requisicao": {
+        "op": "delete_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "delete_user_response",
+        "status": "400",
+        "message": "Senha em formato invalido"
+      }
+    },
+    {
+      "operacao": "delete_user",
+      "requisicao": {
+        "op": "delete_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "delete_user_response",
+        "status": "401",
+        "message": "Token invalido ou expirado"
+      }
+    },
+    {
+      "operacao": "delete_user",
+      "requisicao": {
+        "op": "delete_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "delete_user_response",
+        "status": "403",
+        "message": "Senha incorreta"
+      }
+    },
+    {
+      "operacao": "delete_user",
+      "requisicao": {
+        "op": "delete_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "delete_user_response",
+        "status": "403",
+        "message": "Nao e possivel remover o ultimo administrador"
+      }
+    },
+    {
+      "operacao": "delete_user",
+      "requisicao": {
+        "op": "delete_user",
+        "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9",
+        "password": "senha123"
+      },
+      "resposta": {
+        "op": "delete_user_response",
+        "status": "500",
+        "message": "Erro interno do servidor"
+      }
+    }
+  ]
+}

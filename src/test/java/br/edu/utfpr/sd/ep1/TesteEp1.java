@@ -34,6 +34,13 @@ public final class TesteEp1 {
 
     public static void main(String[] args) throws Exception {
         config = ConfiguracaoMySql.carregar(Path.of(args.length == 0 ? "config/mysql-test.properties" : args[0]));
+        try (TravaBancoTeste trava = new TravaBancoTeste(config)) {
+            trava.conferirBanco();
+            executarBateria();
+        }
+    }
+
+    private static void executarBateria() throws Exception {
         // A bateria so pode limpar o banco separado de testes, nunca o da aplicacao.
         try (Connection conexao = config.abrir()) {
             if (!"ep1_reserva_salas_teste".equals(conexao.getCatalog())) {
