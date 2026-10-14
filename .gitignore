@@ -1,0 +1,7 @@
+/build/
+/data/*
+!/data/.gitkeep
+*.log
+/config/*.properties
+/config/*.cnf
+/config/*.env

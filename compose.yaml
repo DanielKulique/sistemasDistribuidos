@@ -1,0 +1,26 @@
+name: ep1-reserva-salas
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ep1_reserva_salas
+      MYSQL_USER: ep1
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Execute mysql-iniciar.sh}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Execute mysql-iniciar.sh}
+      MYSQL_ROOT_HOST: localhost
+      MYSQL_TEST_PASSWORD: ${MYSQL_TEST_PASSWORD:?Execute mysql-iniciar.sh}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./sql/docker-init.sh:/docker-entrypoint-initdb.d/02-testes.sh:ro
+    command: ["--default-time-zone=-03:00"]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$${MYSQL_TEST_PASSWORD}\" mysql --host=127.0.0.1 --user=ep1_teste --execute='SELECT id FROM ep1_reserva_salas_teste.controle_transacoes WHERE id=1' >/dev/null"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+volumes:
+  mysql-data:
