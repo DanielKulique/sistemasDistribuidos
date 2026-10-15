@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="EP1" default="jar" basedir=".">
+  <description>Java 17+, Swing e arquivo local. Sem downloads ou banco de dados.</description>
+  <property name="port" value="5000"/>
+  <property name="host" value="127.0.0.1"/>
+  <property name="data.file" value="data/ep1.json"/>
+  <path id="runtime"><pathelement location="build/classes"/><pathelement location="lib/gson-2.14.0.jar"/></path>
+  <path id="tests"><path refid="runtime"/><pathelement location="build/test-classes"/></path>
+  <target name="compile">
+    <mkdir dir="build/classes"/>
+    <javac srcdir="src/main/java" destdir="build/classes" release="17" encoding="UTF-8" includeantruntime="false">
+      <classpath><pathelement location="lib/gson-2.14.0.jar"/></classpath>
+      <compilerarg value="-Xlint:all,-classfile"/>
+    </javac>
+  </target>
+  <target name="jar" depends="compile">
+    <jar destfile="build/ep1-netbeans.jar" basedir="build/classes">
+      <manifest><attribute name="Main-Class" value="br.edu.utfpr.sd.ep1.Aplicacao"/><attribute name="Class-Path" value="../lib/gson-2.14.0.jar"/></manifest>
+    </jar>
+  </target>
+  <target name="run" depends="compile" description="Servidor local e interface grafica">
+    <java classname="br.edu.utfpr.sd.ep1.Aplicacao" fork="true" failonerror="true" dir="${basedir}">
+      <classpath refid="runtime"/><arg value="${port}"/><arg value="${data.file}"/>
+    </java>
+  </target>
+  <target name="run-server" depends="compile" description="Somente servidor TCP">
+    <java classname="br.edu.utfpr.sd.ep1.Servidor" fork="true" failonerror="true" dir="${basedir}">
+      <classpath refid="runtime"/><arg value="${port}"/><arg value="${data.file}"/>
+    </java>
+  </target>
+  <target name="run-client" depends="compile" description="Somente interface grafica">
+    <java classname="br.edu.utfpr.sd.ep1.Cliente" fork="true" failonerror="true" dir="${basedir}">
+      <classpath refid="runtime"/><arg value="${host}"/><arg value="${port}"/>
+    </java>
+  </target>
+  <target name="run-single" depends="compile">
+    <fail unless="run.class" message="Selecione uma classe com main ou execute o projeto com F6."/>
+    <java classname="${run.class}" fork="true" failonerror="true" dir="${basedir}"><classpath refid="runtime"/></java>
+  </target>
+  <target name="compile-tests" depends="compile">
+    <mkdir dir="build/test-classes"/>
+    <javac srcdir="src/test/java" destdir="build/test-classes" release="17" encoding="UTF-8" includeantruntime="false">
+      <classpath refid="tests"/><compilerarg value="-Xlint:all,-classfile"/>
+    </javac>
+  </target>
+  <target name="test" depends="compile-tests" description="Todas as baterias, incluindo Swing">
+    <java classname="br.edu.utfpr.sd.ep1.TesteArquivo" fork="true" failonerror="true" dir="${basedir}"><classpath refid="tests"/></java>
+    <java classname="br.edu.utfpr.sd.ep1.TesteEp1" fork="true" failonerror="true" dir="${basedir}"><classpath refid="tests"/></java>
+    <java classname="br.edu.utfpr.sd.ep1.TesteComunicacao" fork="true" failonerror="true" dir="${basedir}"><classpath refid="tests"/></java>
+    <java classname="br.edu.utfpr.sd.ep1.TesteGui" fork="true" failonerror="true" dir="${basedir}"><classpath refid="tests"/></java>
+    <java classname="br.edu.utfpr.sd.ep1.TesteAplicacao" fork="true" failonerror="true" dir="${basedir}"><classpath refid="tests"/></java>
+  </target>
+  <target name="clean" description="Limpa apenas resultados de compilacao; preserva data">
+    <delete dir="build/classes"/><delete dir="build/test-classes"/>
+    <delete file="build/ep1-netbeans.jar"/>
+  </target>
+</project>

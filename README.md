@@ -2,6 +2,23 @@
 
 Cliente gráfico Swing e servidor Java TCP. Implementa cadastro, login, consulta, atualização, exclusão e logout conforme o contrato v2.4.0. Usa somente JDK 17+ e Gson (incluído em `lib/`). Não precisa de MongoDB, MySQL, Docker, instalação de serviços ou credenciais de banco.
 
+## Abrir e executar diretamente no NetBeans
+
+O repositório já contém um projeto Java Ant Free-Form (`nbproject/project.xml` e `build.xml`), com fontes, testes e Gson local configurados. Não crie um novo projeto nem copie os arquivos.
+
+1. No NetBeans, escolha **File > Open Project** (Ctrl+Shift+O) e selecione a pasta raiz que contém `build.xml` e `nbproject`.
+2. Abra **EP1 - Reserva de salas**. Use JDK 17 ou superior para o Ant; verifique em Tools > Java Platforms e, se necessário, Tools > Options > Java > Ant.
+3. Clique com o botão direito no projeto e escolha **Run**, ou defina-o como projeto principal e pressione **F6**.
+4. O servidor local inicia na porta 5000 e a GUI abre conectada a ele. Ao fechar a janela, o servidor dessa execução também encerra. Os JSONs dos dois lados aparecem em **Output** do NetBeans.
+
+A entrada integrada é `br.edu.utfpr.sd.ep1.Aplicacao`. Execute o projeto inteiro para iniciar tudo junto. Executar apenas `Cliente.java` abre somente o cliente; executar `Servidor.java` abre somente o servidor.
+
+O menu do projeto também contém **Executar somente servidor** e **Executar somente cliente GUI**, úteis para clientes em outras máquinas. Feche a execução integrada antes de iniciar outro servidor na mesma porta. **Test Project** executa as baterias automaticamente, incluindo a GUI, e exige ambiente gráfico.
+
+O Ant já vem no NetBeans. Fora da IDE, se Ant estiver no PATH: `ant run`, `ant run-server`, `ant run-client`, `ant test` e `ant jar`. Para outra porta ou arquivo: `ant -Dport=5001 -Ddata.file=data/outro.json run`. O JAR gerado pelo Ant fica em `build/ep1-netbeans.jar`, com entrada integrada e referência ao Gson em `lib/`.
+
+Não é necessário instalar Maven, baixar dependências ou configurar banco de dados. Os scripts abaixo continuam disponíveis.
+
 ## Executar
 
 Na pasta do projeto, abra dois terminais. Primeiro, inicie o servidor:

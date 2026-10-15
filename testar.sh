@@ -10,3 +10,4 @@ java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteArqui
 java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteEp1 "$@"
 java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteComunicacao "$@"
 java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteGui
+java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteAplicacao

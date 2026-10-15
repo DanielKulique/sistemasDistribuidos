@@ -5,3 +5,5 @@
 /config/*.properties
 /config/*.cnf
 /config/*.env
+
+/nbproject/private/
