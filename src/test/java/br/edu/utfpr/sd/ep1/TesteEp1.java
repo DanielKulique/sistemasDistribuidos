@@ -26,13 +26,13 @@ public final class TesteEp1 {
     private static final PrintStream SILENCIO = new PrintStream(OutputStream.nullOutputStream());
     private static final List<JsonObject> RESPOSTAS = new ArrayList<>();
     private static int verificacoes;
-    private static ConfiguracaoMongo config;
+    private static Path config;
 
     private TesteEp1() { }
 
     public static void main(String[] args) throws Exception {
-        config = ConfiguracaoMongo.carregar(Path.of(args.length == 0 ? "config/mongo-test.properties" : args[0]));
-        try (ConfiguracaoMongo conexao = config; TravaBancoTeste trava = new TravaBancoTeste(conexao)) {
+        config = Path.of(args.length == 0 ? "build/ep1-teste.json" : args[0]);
+        try (TravaBancoTeste trava = new TravaBancoTeste(config)) {
             trava.conferirBanco();
             executarBateria();
         }
@@ -55,7 +55,7 @@ public final class TesteEp1 {
         }
     }
 
-    private static RepositorioMongo repositorio() { return new RepositorioMongo(config); }
+    private static RepositorioArquivo repositorio() { return new RepositorioArquivo(config); }
 
     private static void limparTeste() throws IOException {
         TravaBancoTeste.conferir(config);
@@ -185,7 +185,7 @@ public final class TesteEp1 {
         conferir(repositorio().carregar().sessoes.isEmpty(), "Exclusao deve apagar a sessao");
         executar(service, req("read_user", "token", token), "401");
         executar(service, req("register", "user", "rollback", "email", "rollback@email.com", "password", "senha123"), "201");
-        System.out.println("OK: rollback MongoDB, restricoes unicidade, exclusao de sessoes e leitura sem cache desatualizado.");
+        System.out.println("OK: rollback arquivo JSON, restricoes unicidade, exclusao de sessoes e leitura sem cache desatualizado.");
     }
 
     private static JsonObject chamar(int porta, String texto) throws IOException {

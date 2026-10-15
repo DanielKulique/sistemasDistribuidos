@@ -1,3 +1,5 @@
+> Histórico anterior à persistência em arquivo. Para a versão atual, consulte RELATORIO_TESTES_ARQUIVO.md.
+
 # Validação da migração para MongoDB
 
 Data: 14/10/2026.

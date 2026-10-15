@@ -1,3 +1,5 @@
+> Histórico anterior à persistência em arquivo. Para a versão atual, consulte RELATORIO_TESTES_ARQUIVO.md.
+
 # Validação da interface Swing e dos logs JSON
 
 Data: 14/10/2026. JDK 21, alvo Java 17, Windows.

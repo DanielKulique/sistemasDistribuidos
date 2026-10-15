@@ -10,20 +10,18 @@ public final class Servidor {
 
     public static void main(String[] args) {
         if (args.length > 2) {
-            System.err.println("Uso: servidor.sh [porta] [configuracao-mongo]");
+            System.err.println("Uso: servidor.sh [porta] [arquivo-dados.json]");
             System.exit(1);
         }
         try {
             EntradaConsole console = new EntradaConsole();
             int porta = args.length > 0 ? EntradaConsole.validarPorta(args[0]) : console.porta("Porta do servidor: ");
-            Path arquivo = Path.of(args.length > 1 ? args[1] : "config/mongo.properties");
-            try (ConfiguracaoMongo config = ConfiguracaoMongo.carregar(arquivo)) {
-                UsuarioService usuarios = new UsuarioService(new RepositorioMongo(config), Clock.systemUTC());
-                try (ServidorTcp servidor = new ServidorTcp(porta, usuarios, System.out)) {
-                    registrarEncerramento(servidor);
-                    System.out.println("MongoDB configurado por: " + arquivo.toAbsolutePath());
-                    servidor.executar();
-                }
+            Path arquivo = Path.of(args.length > 1 ? args[1] : "data/ep1.json");
+            UsuarioService usuarios = new UsuarioService(new RepositorioArquivo(arquivo), Clock.systemUTC());
+            try (ServidorTcp servidor = new ServidorTcp(porta, usuarios, System.out)) {
+                registrarEncerramento(servidor);
+                System.out.println("Dados salvos em: " + arquivo.toAbsolutePath());
+                servidor.executar();
             }
         } catch (BindException e) {
             System.err.println("Porta ocupada. Escolha outra porta.");

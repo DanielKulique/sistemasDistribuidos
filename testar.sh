@@ -6,6 +6,7 @@ cd -- "$PROJECT_DIR"
 mkdir -p build/test-classes
 sources=("$PROJECT_DIR"/src/test/java/br/edu/utfpr/sd/ep1/*.java)
 javac --release 17 -Xlint:all,-classfile -encoding UTF-8 -cp 'build/classes:lib/*' -d build/test-classes "${sources[@]}"
+java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteArquivo
 java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteEp1 "$@"
 java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteComunicacao "$@"
 java -cp 'build/classes:build/test-classes:lib/*' br.edu.utfpr.sd.ep1.TesteGui

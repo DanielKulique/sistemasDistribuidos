@@ -5,7 +5,7 @@ $javaExe = Join-Path $jdkBin 'java.exe'
 $jarExe = Join-Path $jdkBin 'jar.exe'
 Push-Location $PSScriptRoot
 try {
-    foreach ($dependency in @('gson-2.14.0', 'mongodb-driver-sync-5.2.1', 'mongodb-driver-core-5.2.1', 'bson-5.2.1')) {
+    foreach ($dependency in @('gson-2.14.0')) {
         if (!(Test-Path "lib/$dependency.jar")) { throw "Dependencia ausente: $dependency" }
     }
     New-Item -ItemType Directory -Force build/classes | Out-Null

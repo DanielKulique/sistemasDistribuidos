@@ -2,10 +2,8 @@
 set -euo pipefail
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GSON_JAR="$PROJECT_DIR/lib/gson-2.14.0.jar"
-MONGO_JAR="$PROJECT_DIR/lib/mongodb-driver-sync-5.2.1.jar"
 command -v javac >/dev/null || { echo 'Instale um JDK 17 ou superior.' >&2; exit 1; }
 test -f "$GSON_JAR" || { echo "Dependencia ausente: $GSON_JAR" >&2; exit 1; }
-test -f "$MONGO_JAR" || { echo "Dependencia ausente: $MONGO_JAR" >&2; exit 1; }
 mkdir -p "$PROJECT_DIR/build"
 rm -rf -- "$PROJECT_DIR/build/classes"
 mkdir -p "$PROJECT_DIR/build/classes"
