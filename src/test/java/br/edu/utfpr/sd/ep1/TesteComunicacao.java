@@ -10,7 +10,6 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,12 +21,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Casos adversos de protocolo, servidores simulados e concorrencia real no MySQL. */
+/** Casos adversos de protocolo, servidores simulados e concorrencia real no MongoDB. */
 public final class TesteComunicacao {
     private static final PrintStream SILENCIO = new PrintStream(OutputStream.nullOutputStream());
     private static final List<JsonObject> RESULTADOS = new ArrayList<>();
     private static final List<JsonObject> RESPOSTAS = Collections.synchronizedList(new ArrayList<>());
-    private static ConfiguracaoMySql config;
+    private static ConfiguracaoMongo config;
     private static Path caminhoConfig;
     private static int verificacoes;
     private static int falhas;
@@ -40,9 +39,9 @@ public final class TesteComunicacao {
     private TesteComunicacao() { }
 
     public static void main(String[] args) throws Exception {
-        caminhoConfig = Path.of(args.length == 0 ? "config/mysql-test.properties" : args[0]);
-        config = ConfiguracaoMySql.carregar(caminhoConfig);
-        try (TravaBancoTeste trava = new TravaBancoTeste(config)) {
+        caminhoConfig = Path.of(args.length == 0 ? "config/mongo-test.properties" : args[0]);
+        config = ConfiguracaoMongo.carregar(caminhoConfig);
+        try (ConfiguracaoMongo conexao = config; TravaBancoTeste trava = new TravaBancoTeste(conexao)) {
             trava.conferirBanco();
             executarBateria();
         }
@@ -50,7 +49,7 @@ public final class TesteComunicacao {
 
     private static void executarBateria() throws Exception {
         limpar();
-        ServidorTcp servidor = new ServidorTcp(0, new UsuarioService(new RepositorioMySql(config), Clock.systemUTC()), SILENCIO, 3000);
+        ServidorTcp servidor = new ServidorTcp(0, new UsuarioService(new RepositorioMongo(config), Clock.systemUTC()), SILENCIO, 3000);
         Thread thread = new Thread(() -> {
             try { servidor.executar(); } catch (IOException e) { throw new IllegalStateException(e); }
         }, "bateria-comunicacao");
@@ -102,13 +101,10 @@ public final class TesteComunicacao {
     }
 
     private static void limpar() throws Exception {
-        try (Connection conexao = config.abrir(); var stmt = conexao.createStatement()) {
-            if (!"ep1_reserva_salas_teste".equals(conexao.getCatalog())) throw new IllegalArgumentException("Banco de testes incorreto");
-            conexao.setAutoCommit(false);
-            stmt.executeUpdate("DELETE FROM sessoes");
-            stmt.executeUpdate("DELETE FROM usuarios");
-            conexao.commit();
-        }
+        TravaBancoTeste.conferir(config);
+        new RepositorioMongo(config).transacionar(banco -> {
+            banco.sessoes.clear(); banco.usuarios.clear(); return new JsonObject();
+        });
     }
 
     private static JsonObject req(String op, String... pares) {
@@ -271,7 +267,7 @@ public final class TesteComunicacao {
         });
         caso("Ultimo administrador nao pode ser excluido", () -> {
             String token = cadastrarLogar("administrador");
-            new RepositorioMySql(config).transacionar(banco -> {
+            new RepositorioMongo(config).transacionar(banco -> {
                 banco.usuarios.stream().filter(u -> u.user.equals("administrador")).findFirst().orElseThrow().role = "admin";
                 return Protocolo.resposta("update_user_response", "200", "Dados atualizados com sucesso");
             });
@@ -473,7 +469,7 @@ public final class TesteComunicacao {
 
     private static void falhasEReenvio() {
         caso("Outra bateria e impedida de limpar o banco em uso", () -> {
-            int quantidade = new RepositorioMySql(config).carregar().usuarios.size();
+            int quantidade = new RepositorioMongo(config).carregar().usuarios.size();
             Process processo = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
                     "-cp", System.getProperty("java.class.path"), TesteEp1.class.getName(), caminhoConfig.toString())
                     .redirectErrorStream(true).start();
@@ -483,11 +479,11 @@ public final class TesteComunicacao {
             }
             String saida = new String(processo.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             conferir(processo.exitValue() != 0 && saida.contains("Outra bateria"), "Baterias concorrentes nao foram isoladas");
-            conferir(new RepositorioMySql(config).carregar().usuarios.size() == quantidade, "Outra bateria alterou o banco");
+            conferir(new RepositorioMongo(config).carregar().usuarios.size() == quantidade, "Outra bateria alterou o banco");
         });
         caso("Falha de repositorio retorna 500 sem reenvio e sem derrubar a conexao", () -> {
             AtomicInteger tentativas = new AtomicInteger();
-            RepositorioMySql real = new RepositorioMySql(config);
+            RepositorioMongo real = new RepositorioMongo(config);
             RepositorioUsuarios falho = new RepositorioUsuarios() {
                 @Override public Banco carregar() throws IOException { return real.carregar(); }
                 @Override public JsonObject transacionar(java.util.function.Function<Banco, JsonObject> operacao) throws IOException {

@@ -9,8 +9,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,25 +26,20 @@ public final class TesteEp1 {
     private static final PrintStream SILENCIO = new PrintStream(OutputStream.nullOutputStream());
     private static final List<JsonObject> RESPOSTAS = new ArrayList<>();
     private static int verificacoes;
-    private static ConfiguracaoMySql config;
+    private static ConfiguracaoMongo config;
 
     private TesteEp1() { }
 
     public static void main(String[] args) throws Exception {
-        config = ConfiguracaoMySql.carregar(Path.of(args.length == 0 ? "config/mysql-test.properties" : args[0]));
-        try (TravaBancoTeste trava = new TravaBancoTeste(config)) {
+        config = ConfiguracaoMongo.carregar(Path.of(args.length == 0 ? "config/mongo-test.properties" : args[0]));
+        try (ConfiguracaoMongo conexao = config; TravaBancoTeste trava = new TravaBancoTeste(conexao)) {
             trava.conferirBanco();
             executarBateria();
         }
     }
 
     private static void executarBateria() throws Exception {
-        // A bateria so pode limpar o banco separado de testes, nunca o da aplicacao.
-        try (Connection conexao = config.abrir()) {
-            if (!"ep1_reserva_salas_teste".equals(conexao.getCatalog())) {
-                throw new IllegalArgumentException("Os testes exigem o banco ep1_reserva_salas_teste");
-            }
-        }
+        TravaBancoTeste.conferir(config);
         try {
             limparTeste();
             regrasEP1();
@@ -62,16 +55,13 @@ public final class TesteEp1 {
         }
     }
 
-    private static RepositorioMySql repositorio() { return new RepositorioMySql(config); }
+    private static RepositorioMongo repositorio() { return new RepositorioMongo(config); }
 
-    private static void limparTeste() throws SQLException {
-        try (Connection conexao = config.abrir(); var stmt = conexao.createStatement()) {
-            if (!"ep1_reserva_salas_teste".equals(conexao.getCatalog())) throw new SQLException("Banco de testes incorreto");
-            conexao.setAutoCommit(false);
-            stmt.executeUpdate("DELETE FROM sessoes");
-            stmt.executeUpdate("DELETE FROM usuarios");
-            conexao.commit();
-        }
+    private static void limparTeste() throws IOException {
+        TravaBancoTeste.conferir(config);
+        repositorio().transacionar(banco -> {
+            banco.sessoes.clear(); banco.usuarios.clear(); return new JsonObject();
+        });
     }
 
     private static JsonObject req(String op, String... campos) {
@@ -168,7 +158,7 @@ public final class TesteEp1 {
                 original.user = "alterado";
                 duplicado.id = UUID.randomUUID().toString();
                 duplicado.user = "duplicado";
-                // O mesmo email viola UNIQUE depois da atualizacao anterior.
+                // O mesmo email viola unicidade depois da atualizacao anterior.
                 banco.usuarios.add(duplicado);
                 return Protocolo.resposta("register_response", "201", "Usuario cadastrado com sucesso");
             });
@@ -177,23 +167,25 @@ public final class TesteEp1 {
         conferir(falhou && depois.usuarios.size() == 1 && depois.usuarios.get(0).user.equals("rollback"),
                 "Rollback deve desfazer todas as alteracoes da transacao");
         String token = Protocolo.string(executar(service, req("login", "email", "rollback@email.com", "password", "senha123"), "200"), "token");
-        try (Connection conexao = config.abrir(); var stmt = conexao.prepareStatement(
-                "INSERT INTO sessoes (token, usuario_id, ultimo_uso) VALUES (?, ?, ?)")) {
-            stmt.setString(1, "b".repeat(64));
-            stmt.setString(2, depois.usuarios.get(0).id);
-            stmt.setLong(3, System.currentTimeMillis());
-            falhou = false;
-            try { stmt.executeUpdate(); } catch (SQLException e) { falhou = e.getSQLState().startsWith("23"); }
-            conferir(falhou, "UNIQUE deve impedir duas sessoes para o mesmo usuario");
-        }
-        try (Connection conexao = config.abrir(); var stmt = conexao.prepareStatement("DELETE FROM usuarios WHERE id=?")) {
-            stmt.setString(1, depois.usuarios.get(0).id);
-            stmt.executeUpdate();
-        }
-        conferir(repositorio().carregar().sessoes.isEmpty(), "ON DELETE CASCADE deve apagar a sessao");
+        falhou = false;
+        try {
+            repositorio().transacionar(banco -> {
+                Banco.Sessao sessao = new Banco.Sessao();
+                sessao.token = "b".repeat(64);
+                sessao.usuarioId = banco.usuarios.get(0).id;
+                sessao.ultimoUso = System.currentTimeMillis();
+                banco.sessoes.add(sessao);
+                return new JsonObject();
+            });
+        } catch (IOException e) { falhou = true; }
+        conferir(falhou, "Repositorio deve impedir duas sessoes para o mesmo usuario");
+        repositorio().transacionar(banco -> {
+            banco.sessoes.clear(); banco.usuarios.clear(); return new JsonObject();
+        });
+        conferir(repositorio().carregar().sessoes.isEmpty(), "Exclusao deve apagar a sessao");
         executar(service, req("read_user", "token", token), "401");
         executar(service, req("register", "user", "rollback", "email", "rollback@email.com", "password", "senha123"), "201");
-        System.out.println("OK: rollback MySQL, restricoes UNIQUE, exclusao em cascata e leitura sem cache desatualizado.");
+        System.out.println("OK: rollback MongoDB, restricoes unicidade, exclusao de sessoes e leitura sem cache desatualizado.");
     }
 
     private static JsonObject chamar(int porta, String texto) throws IOException {

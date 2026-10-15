@@ -1,28 +1,29 @@
 package br.edu.utfpr.sd.ep1;
 
-import java.sql.Connection;
-import java.sql.SQLException;
+import com.mongodb.MongoWriteException;
+import com.mongodb.client.MongoCollection;
+import java.io.IOException;
+import org.bson.Document;
+import static com.mongodb.client.model.Filters.eq;
 
-/** Impede que duas baterias limpem o mesmo banco simultaneamente. */
+/** Trava entre processos; apenas o banco dedicado pode ser limpo. */
 final class TravaBancoTeste implements AutoCloseable {
-    private final Connection conexao;
+    private final ConfiguracaoMongo config;
+    private final MongoCollection<Document> travas;
 
-    TravaBancoTeste(ConfiguracaoMySql config) throws SQLException {
-        conexao = config.abrir();
-        try {
-            conferirBanco();
-            try (var stmt = conexao.prepareStatement("SELECT GET_LOCK('ep1_bateria_testes', 0)"); var rs = stmt.executeQuery()) {
-                if (!rs.next() || rs.getInt(1) != 1) throw new SQLException("Outra bateria ja esta usando o banco de testes");
-            }
-        } catch (SQLException | RuntimeException e) {
-            conexao.close();
+    TravaBancoTeste(ConfiguracaoMongo config) throws IOException {
+        conferir(config);
+        this.config = config;
+        travas = config.abrir().getCollection("travas_teste");
+        try { travas.insertOne(new Document("_id", "bateria")); }
+        catch (MongoWriteException e) {
+            if (e.getError().getCode() == 11000) throw new IOException("Outra bateria ja esta usando o banco de testes", e);
             throw e;
         }
     }
-
-    void conferirBanco() throws SQLException {
-        if (!"ep1_reserva_salas_teste".equals(conexao.getCatalog())) throw new SQLException("Banco de testes incorreto");
+    static void conferir(ConfiguracaoMongo config) throws IOException {
+        if (!"ep1_reserva_salas_teste".equals(config.banco())) throw new IOException("Banco de testes incorreto");
     }
-
-    @Override public void close() throws SQLException { conexao.close(); }
+    void conferirBanco() throws IOException { conferir(config); }
+    @Override public void close() { travas.deleteOne(eq("_id", "bateria")); }
 }

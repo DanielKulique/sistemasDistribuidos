@@ -1,3 +1,5 @@
+> Histórico da versão MySQL anterior à migração. Consulte RELATORIO_TESTES_MONGO.md para a validação atual.
+
 # Bateria de testes da EP-1 — funcionalidades, TCP e protocolo
 
 Data: 14/10/2026. Contrato: AsyncAPI v2.4.0. Base inicial: commit `31b8c85`.

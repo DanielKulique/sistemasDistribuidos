@@ -1,5 +1,0 @@
-# Copie para mysql.properties caso utilize um MySQL ja instalado/administrado.
-# mysql-iniciar.sh gera o arquivo automaticamente para a instancia local do projeto.
-jdbc.url=jdbc:mysql://127.0.0.1:3306/ep1_reserva_salas?connectionTimeZone=America/Sao_Paulo&sslMode=DISABLED&allowPublicKeyRetrieval=true&connectTimeout=5000&socketTimeout=10000
-jdbc.user=ep1
-jdbc.password=SUBSTITUA_PELA_SENHA_DO_USUARIO_MYSQL

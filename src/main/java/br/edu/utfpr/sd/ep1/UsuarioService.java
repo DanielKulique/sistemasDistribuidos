@@ -29,7 +29,7 @@ public final class UsuarioService {
     public UsuarioService(RepositorioUsuarios repositorio, Clock clock) throws IOException {
         this.repositorio = repositorio;
         this.clock = clock;
-        repositorio.carregar(); // Confere conexao e tabelas antes de aceitar clientes.
+        repositorio.carregar(); // Confere conexao e estado antes de aceitar clientes.
     }
 
     public JsonObject executar(JsonObject req) throws IOException {

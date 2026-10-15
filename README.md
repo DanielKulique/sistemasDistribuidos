@@ -1,116 +1,65 @@
-# EP-1 — Reserva de salas com MySQL
+# EP-1 — Reserva de salas com MongoDB
 
-Cliente de console e servidor Java TCP com uma thread por conexão, Gson e MySQL. Implementa cadastro, login, leitura, atualização, logout e exclusão do próprio usuário conforme o contrato v2.4.0.
+Cliente de console e servidor Java TCP com uma thread por conexão, Gson e MongoDB. Implementa as seis operações de usuários da EP-1 conforme o contrato v2.4.0.
 
 ## Requisitos
 
 - JDK 17 ou superior (`java`, `javac` e `jar`).
-- Bash e OpenSSL para os scripts.
-- Docker com Docker Compose para iniciar o MySQL local. Também é possível usar uma instalação MySQL 8.0+ existente.
-- Dependências já incluídas em `lib/`: Gson 2.14.0 e MySQL Connector/J 9.6.0. A compilação não faz downloads.
+- MongoDB em execução, local ou remoto, com permissão de leitura e escrita no banco escolhido. Não exige Docker nem replica set.
+- Dependências incluídas em `lib/`: Gson 2.14.0 e driver Java MongoDB 5.2.1 (sync, core e BSON). A compilação não faz downloads.
+- PowerShell no Windows ou Bash no Linux/macOS.
 
-## Iniciar o projeto
+## Executar no Windows
 
-Na pasta `ep1-reserva-salas`:
+Na pasta do projeto, copie os exemplos (apenas na primeira configuração):
 
-```bash
-./mysql-iniciar.sh
-./servidor.sh
+```powershell
+Copy-Item config/mongo.properties.example config/mongo.properties
+Copy-Item config/mongo-test.properties.example config/mongo-test.properties
 ```
 
-O primeiro comando cria e inicia o MySQL do projeto em `127.0.0.1:3306`, com volume persistente. Na primeira execução, cria o banco `ep1_reserva_salas`, suas tabelas e um usuário próprio da aplicação. As senhas são geradas automaticamente e a configuração JDBC fica em `config/mysql.properties`.
+Edite `config/mongo.properties` se necessário:
 
-O servidor pergunta a porta TCP, por exemplo `5000`. Em outro terminal, na mesma pasta:
-
-```bash
-./cliente.sh
+```properties
+mongo.uri=mongodb://127.0.0.1:27017
+mongo.database=ep1_reserva_salas
 ```
 
-O cliente pergunta IP e porta do servidor. O menu permite criar conta, fazer login, consultar, atualizar, apagar a conta e fazer logout. As mensagens JSON aparecem nos dois terminais para a avaliação. Há confirmação explícita para excluir a conta. Enter em um campo de atualização mantém o valor atual.
+O MongoDB deve estar iniciado. Se usar outro endereço, porta ou autenticação, altere `mongo.uri` (por exemplo `mongodb://usuario:senha@servidor:27017/?authSource=admin`, com caracteres especiais percent-encoded). Os arquivos `.properties` locais não são versionados. Não coloque credenciais nos exemplos.
 
-Parâmetros opcionais:
+Inicie o servidor e, em outro terminal, o cliente:
 
-```bash
-./servidor.sh 5000
-./cliente.sh 127.0.0.1 5000
-./servidor.sh 5001 config/outro-mysql.properties
+```powershell
+.\servidor.ps1 5000
+.\cliente.ps1 127.0.0.1 5000
 ```
 
-A porta **3306** é do MySQL; a porta **5000** é um exemplo para o servidor TCP do projeto. O cliente de reservas se conecta ao servidor TCP, que acessa o MySQL por JDBC.
+Os scripts compilam antes de executar e usam o Java do mesmo JDK encontrado por javac, evitando conflito com o Java 8 instalado. Se a política local bloquear scripts e permitir execução por processo, execute `powershell -ExecutionPolicy Bypass -File .\servidor.ps1 5000` (e o equivalente para o cliente). Não é necessário instalar serviços nem alterar a política da máquina.
 
-Para parar e iniciar novamente o banco:
+Sem parâmetros, servidor e cliente perguntam porta/endereço. Para outra configuração: `.\servidor.ps1 5001 config/outro-mongo.properties`.
 
-```bash
-./mysql-parar.sh
-./mysql-iniciar.sh
-```
+No Bash, use `./servidor.sh 5000` e `./cliente.sh 127.0.0.1 5000`. A porta padrão do MongoDB é **27017**; **5000** é a porta TCP da aplicação. O cliente conecta ao servidor Java, que acessa o banco.
 
-Parar o contêiner preserva os dados no volume `ep1-reserva-salas_mysql-data`. Os arquivos gerados em `config/` guardam as credenciais dessa instância e devem ser mantidos entre reinícios. Eles estão excluídos do Git e do ZIP de distribuição. Uma cópia nova do projeto em outra máquina gera suas próprias credenciais ao iniciar o banco.
+O menu permite criar conta, fazer login, consultar, atualizar, excluir a conta e fazer logout. As mensagens JSON aparecem nos terminais. Enter em um campo de atualização mantém o valor atual.
 
-Se 3306 estiver ocupada, escolha outra porta **antes da primeira inicialização**:
+## Persistência e concorrência
 
-```bash
-EP1_MYSQL_PORT=3307 ./mysql-iniciar.sh
-```
+Na primeira conexão, a aplicação cria o documento `_id: ep1` na coleção `estado` do banco configurado. Não há SQL nem criação manual de tabelas. Usuários e sessões são armazenados como arrays BSON; senhas permanecem como hash PBKDF2 com salt.
 
-## Banco e tabelas
+Cada operação lê o estado e sua versão, executa as regras em memória e substitui o documento somente se a versão ainda for a mesma. Um conflito refaz a operação sobre o estado atual, até 100 tentativas. A resposta só é devolvida depois da gravação confirmada. A substituição é atômica, inclusive em MongoDB standalone, e impede perda de alterações entre processos servidores. Falhas de validação ou exceções antes da gravação não persistem alterações.
 
-O [esquema SQL](sql/schema.sql) cria tabelas InnoDB:
+O repositório valida unicidade de ID, nome, e-mail e sessão por usuário, além da referência de sessões para usuários. A exclusão de conta pelo serviço remove também sua sessão. Essas regras são garantidas pelo código do repositório; edição manual dos documentos pode violá-las.
 
-| Tabela | Conteúdo e restrições |
-|---|---|
-| `usuarios` | UUID interno, nome único, e-mail único, hash/salt da senha, perfil e data de criação. |
-| `sessoes` | Token como chave primária, uma sessão por usuário, último uso em milissegundos e chave estrangeira com `ON DELETE CASCADE`. |
-| `controle_transacoes` | Uma linha usada para bloquear a seção crítica da EP-1 no próprio MySQL. |
-
-Nome e e-mail usam comparação exata. Como o protocolo não limita e-mail a 255 caracteres, ele é salvo como `TEXT` e sua unicidade é garantida por um índice do SHA-256 completo gerado pelo MySQL. As senhas são hashes PBKDF2 com salt individual, nunca senhas em texto no banco.
-
-Cada requisição de negócio abre uma transação JDBC, bloqueia a linha de controle com `SELECT ... FOR UPDATE`, lê o estado atual e persiste somente as alterações. O resultado só é devolvido depois do commit. Erros desfazem a transação por rollback e recebem 500. Essa seção crítica compartilhada também protege dois processos servidores conectados ao mesmo banco. É uma implementação simples para a EP-1; o lock é global e serializa as operações.
-
-Há um segundo banco, `ep1_reserva_salas_teste`, com usuário e credenciais separados para a bateria de testes. O usuário da aplicação não usa a conta root.
-
-## Usar uma instalação MySQL existente
-
-Em vez do Docker, um administrador pode criar o esquema, executando na pasta deste projeto:
-
-```bash
-mysql -u root -p < sql/criar-banco.sql
-cp config/mysql.properties.example config/mysql.properties
-```
-
-Crie um usuário MySQL para a aplicação e conceda `SELECT`, `INSERT`, `UPDATE` e `DELETE` no banco `ep1_reserva_salas`. Preencha `jdbc.url`, `jdbc.user` e `jdbc.password` na configuração. O servidor não cria usuários MySQL nem executa DDL automaticamente: ele verifica conexão e tabelas ao iniciar.
-
-A URL de exemplo utiliza conexão local sem TLS, adequada à instância publicada somente em `127.0.0.1`. Para um servidor MySQL remoto, configure a URL e o TLS conforme esse ambiente. O cliente TCP não precisa das credenciais do banco.
+**Limite desta implementação para a EP-1:** todo o estado fica em um documento, sujeito ao limite BSON de 16 MiB e à contenção em um único documento. É adequada à entrega acadêmica; uma aplicação maior precisará separar coleções e usar transações com replica set. Dados de uma instalação MySQL anterior não são migrados automaticamente.
 
 ## Estrutura
 
-```text
-lib/                       Gson, Connector/J e respectivas licenças
-config/                    Exemplos e configurações locais de conexão
-sql/schema.sql             Tabelas, índices e chaves estrangeiras
-sql/criar-banco.sql         Criação manual do banco da aplicação
-sql/docker-init.sh         Inicialização do banco separado de testes
-compose.yaml               MySQL 8.4 e volume persistente
-src/main/java/br/edu/utfpr/sd/ep1/
-  Cliente.java             Menu e formulários
-  ClienteTcp.java          Envio, resposta e reconexão
-  Servidor.java            Porta TCP e configuração JDBC
-  ServidorTcp.java         Sockets e threads
-  Protocolo.java           JSON estrito, UTF-8, LF e limite de bytes
-  ValidacaoResposta.java   Status/message e campos das respostas da EP-1
-  ErroProtocoloException.java Resposta invalida, sem reenvio automatico
-  UsuarioService.java      Regras das seis operações
-  Banco.java               Modelos de usuário e sessão usados nas transações
-  RepositorioUsuarios.java Contrato do repositório
-  RepositorioMySql.java     Queries JDBC, bloqueio, commit e rollback
-  ConfiguracaoMySql.java    Leitura da configuração e abertura de conexão
-  Senhas.java              PBKDF2 com salt
-  EntradaConsole.java      Leitor único e validação de portas
-src/test/java/             Testes reais com MySQL, TCP e console
-build/                     Classes, JAR e respostas gerados localmente
-```
-
-Scripts: `build.sh`, `servidor.sh`, `cliente.sh`, `mysql-iniciar.sh`, `mysql-parar.sh` e `testar.sh`.
+- `src/main/java/`: cliente, servidor TCP, protocolo, regras e `RepositorioMongo`/`ConfiguracaoMongo`.
+- `src/test/java/`: testes de persistência, serviço, concorrência, TCP e console.
+- `config/`: exemplos de conexão da aplicação e dos testes.
+- `lib/`: bibliotecas e licenças.
+- `build/`: classes, JAR e resultados gerados, ignorados pelo Git.
+- Scripts `build`, `servidor`, `cliente` e `testar`, em versões `.ps1` e `.sh`.
 
 ## Protocolo e decisões da EP-1
 
@@ -145,30 +94,24 @@ Administração, salas e reservas ficam para as próximas entregas. A exclusão 
 
 ## Compilação e testes
 
-```bash
-./build.sh
-./testar.sh
+```powershell
+.\build.ps1
+.\testar.ps1
 ```
 
-Os testes exigem o MySQL iniciado. Usam e limpam exclusivamente `ep1_reserva_salas_teste`; o código rejeita qualquer outro nome de banco para a bateria. Cobrem as seis operações, persistência entre instâncias, validade/renovação de sessão com relógio controlado, rollback, restrições SQL, exclusão de sessão em cascata, concorrência entre dois servidores, limite de bytes, JSON inválido, fragmentação TCP, reconexão e menu do cliente. Não requerem JUnit.
+No Bash: `./build.sh` e `./testar.sh`. Para outra conexão de testes: `.\testar.ps1 config/outro-teste.properties`.
 
-O script executa duas baterias em sequência e utiliza um lock no MySQL para impedir que outra bateria limpe o banco durante a execução. A bateria adicional inclui servidores simulados, respostas inválidas/perdidas, timeouts, 16 clientes concorrentes e as 29 variantes canônicas de resposta da EP-1. Resultado desta revisão: **557 verificações aprovadas**, com 33 cenários adicionais de comunicação. Os detalhes, correções e limitações estão no [relatório de testes](docs/RELATORIO_TESTES.md).
+Configure `config/mongo-test.properties` com a URI do MongoDB e `mongo.database=ep1_reserva_salas_teste`. Os testes apagam dados exclusivamente desse banco, e rejeitam outro nome. Uma trava na coleção `travas_teste` impede baterias simultâneas. Se o processo for morto abruptamente, a trava pode ficar retida; após confirmar que nenhuma bateria está rodando, remova apenas o documento `_id: bateria` dessa coleção no banco de testes.
 
-Para executar classes já compiladas:
+As baterias cobrem operações, persistência entre instâncias, expiração/renovação de sessões, rejeição de estados inconsistentes sem gravação parcial, concorrência entre servidores, JSON inválido, fragmentação TCP, reconexão e console. Não requerem JUnit. Resultados da versão MongoDB estão em [relatório](docs/RELATORIO_TESTES_MONGO.md); o relatório anterior de MySQL é apenas histórico.
 
-```bash
-java -cp 'build/ep1.jar:lib/*' br.edu.utfpr.sd.ep1.Servidor
-java -cp 'build/ep1.jar:lib/*' br.edu.utfpr.sd.ep1.Cliente
+Para executar sem scripts após compilar, no Windows:
+
+```powershell
+java -cp 'build/ep1.jar;lib/*' br.edu.utfpr.sd.ep1.Servidor 5000
+java -cp 'build/ep1.jar;lib/*' br.edu.utfpr.sd.ep1.Cliente 127.0.0.1 5000
 ```
 
-O testador do protocolo original pode enviar mensagens manuais:
+No Linux/macOS use `:` como separador do classpath.
 
-```bash
-node ../protocolo-reserva-salas-main/scripts/testar-servidor.mjs 127.0.0.1 5000 --interativo
-```
-
-A bateria completa dele também exige administração, salas e reservas; essas operações não integram a EP-1. Para esta entrega, use a bateria Java ou as seis operações no modo interativo.
-
-Na entrega, inclua fontes, dependências, SQL, Compose, exemplos de configuração, scripts e documentação. O ZIP contém esses arquivos e não inclui bancos, classes compiladas ou credenciais geradas.
-
-Referências técnicas: [Connector/J e Maven](https://dev.mysql.com/doc/connector-j/en/connector-j-installing-maven.html) e [leituras com lock no InnoDB](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html).
+Referências: [atomicidade e concorrência no MongoDB](https://www.mongodb.com/docs/manual/core/write-operations-atomicity/) e [substituição de documentos com o driver Java](https://www.mongodb.com/docs/drivers/java/sync/current/crud/replace-documents/).
