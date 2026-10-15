@@ -297,7 +297,7 @@ public final class TesteEp1 {
                 + "1\n2\nconsolenovo\nnova123\n4\n"
                 + "2\nconsole@email.com\nnova123\n3\nSIM\nnova123\n0\n";
         Process processo = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                "-cp", System.getProperty("java.class.path"), Cliente.class.getName()).redirectErrorStream(true).start();
+                "-cp", System.getProperty("java.class.path"), Cliente.class.getName(), "--console").redirectErrorStream(true).start();
         processo.getOutputStream().write(entrada.getBytes(StandardCharsets.UTF_8));
         processo.getOutputStream().close();
         if (!processo.waitFor(15, TimeUnit.SECONDS)) {

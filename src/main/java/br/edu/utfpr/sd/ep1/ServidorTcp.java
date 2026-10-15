@@ -63,7 +63,8 @@ public final class ServidorTcp implements AutoCloseable {
             while ((linha = Protocolo.ler(entrada)) != null) {
                 JsonObject resposta;
                 if (linha.excedida()) {
-                    log.println("[" + origem + "] recebida linha acima de " + Protocolo.LIMITE_BYTES + " bytes");
+                    log.println("[" + origem + "] C -> S [linha acima de " + Protocolo.LIMITE_BYTES
+                            + " bytes; prefixo Base64] " + java.util.Base64.getEncoder().encodeToString(linha.bytes()));
                     resposta = Protocolo.erro("Mensagem excede o tamanho maximo");
                 } else {
                     JsonObject req = null;
@@ -72,6 +73,10 @@ public final class ServidorTcp implements AutoCloseable {
                         log.println("[" + origem + "] C -> S " + texto);
                         req = Protocolo.interpretar(texto);
                     } catch (RuntimeException | IOException e) {
+                        if (e instanceof java.nio.charset.CharacterCodingException) {
+                            log.println("[" + origem + "] C -> S [UTF-8 invalido; Base64] "
+                                    + java.util.Base64.getEncoder().encodeToString(linha.bytes()));
+                        }
                         // JSON ou UTF-8 invalidos recebem uma resposta, mantendo a conexao.
                     }
                     if (req == null) {

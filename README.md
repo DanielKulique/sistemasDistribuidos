@@ -1,6 +1,6 @@
 # EP-1 — Reserva de salas com MongoDB
 
-Cliente de console e servidor Java TCP com uma thread por conexão, Gson e MongoDB. Implementa as seis operações de usuários da EP-1 conforme o contrato v2.4.0.
+Cliente gráfico Swing e servidor Java TCP com uma thread por conexão, Gson e MongoDB. Implementa as seis operações de usuários da EP-1 conforme o contrato v2.4.0. Swing faz parte do Java padrão; não exige JavaFX ou bibliotecas gráficas externas.
 
 ## Requisitos
 
@@ -40,7 +40,11 @@ Sem parâmetros, servidor e cliente perguntam porta/endereço. Para outra config
 
 No Bash, use `./servidor.sh 5000` e `./cliente.sh 127.0.0.1 5000`. A porta padrão do MongoDB é **27017**; **5000** é a porta TCP da aplicação. O cliente conecta ao servidor Java, que acessa o banco.
 
-O menu permite criar conta, fazer login, consultar, atualizar, excluir a conta e fazer logout. As mensagens JSON aparecem nos terminais. Enter em um campo de atualização mantém o valor atual.
+A janela permite criar conta, fazer login, consultar, atualizar, excluir a conta com confirmação e fazer logout. Informe endereço e porta no topo. Após o login, o servidor fica fixo até sair da sessão. Deixe os campos de atualização vazios para manter os valores atuais. Fechar a janela autenticada envia logout; uma falha de comunicação pede confirmação antes de sair sem resposta.
+
+As chamadas TCP são executadas fora da thread gráfica para manter a janela responsiva. As requisições e respostas JSON completas aparecem nos terminais do cliente e do servidor, identificadas por `C -> S` e `S -> C`, inclusive cadastro, login, consulta, atualização, exclusão, logout e reenvios. Conexões e falhas também são registradas. Mensagens com UTF-8 inválido são registradas em Base64; mensagens acima do limite têm o prefixo registrado, mantendo o limite de memória do protocolo.
+
+Para usar o cliente de console: `./cliente.sh --console 127.0.0.1 5000` ou `.\cliente.ps1 --console 127.0.0.1 5000`. O servidor continua no terminal e deve estar em execução antes de usar os formulários.
 
 ## Persistência e concorrência
 
@@ -94,6 +98,8 @@ Administração, salas e reservas ficam para as próximas entregas. A exclusão 
 
 ## Compilação e testes
 
+Resultado com Swing: **602 verificações aprovadas**, conforme o [relatório da GUI e dos logs](docs/RELATORIO_TESTES_GUI.md).
+
 ```powershell
 .\build.ps1
 .\testar.ps1
@@ -103,7 +109,7 @@ No Bash: `./build.sh` e `./testar.sh`. Para outra conexão de testes: `.\testar.
 
 Configure `config/mongo-test.properties` com a URI do MongoDB e `mongo.database=ep1_reserva_salas_teste`. Os testes apagam dados exclusivamente desse banco, e rejeitam outro nome. Uma trava na coleção `travas_teste` impede baterias simultâneas. Se o processo for morto abruptamente, a trava pode ficar retida; após confirmar que nenhuma bateria está rodando, remova apenas o documento `_id: bateria` dessa coleção no banco de testes.
 
-As baterias cobrem operações, persistência entre instâncias, expiração/renovação de sessões, rejeição de estados inconsistentes sem gravação parcial, concorrência entre servidores, JSON inválido, fragmentação TCP, reconexão e console. Não requerem JUnit. Resultados da versão MongoDB estão em [relatório](docs/RELATORIO_TESTES_MONGO.md); o relatório anterior de MySQL é apenas histórico.
+As baterias cobrem operações, persistência entre instâncias, expiração/renovação de sessões, rejeição de estados inconsistentes sem gravação parcial, concorrência entre servidores, JSON inválido, fragmentação TCP, reconexão, console e interface Swing. Não requerem JUnit. A bateria gráfica exige uma sessão com ambiente gráfico e testa botões com servidor TCP real, além dos JSONs em ambos os terminais. Resultados da versão MongoDB estão em [relatório](docs/RELATORIO_TESTES_MONGO.md); o relatório anterior de MySQL é apenas histórico.
 
 Para executar sem scripts após compilar, no Windows:
 

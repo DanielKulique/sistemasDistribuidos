@@ -587,7 +587,7 @@ public final class TesteComunicacao {
 
     private static String console(int porta, String dados) throws Exception {
         Process processo = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-                "-cp", System.getProperty("java.class.path"), Cliente.class.getName(), "127.0.0.1", String.valueOf(porta))
+                "-cp", System.getProperty("java.class.path"), Cliente.class.getName(), "--console", "127.0.0.1", String.valueOf(porta))
                 .redirectErrorStream(true).start();
         processo.getOutputStream().write(dados.getBytes(StandardCharsets.UTF_8));
         processo.getOutputStream().close();

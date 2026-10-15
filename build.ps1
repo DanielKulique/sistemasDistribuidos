@@ -1,3 +1,4 @@
+param([switch]$SomenteClasses)
 $ErrorActionPreference = 'Stop'
 $jdkBin = Split-Path (Get-Command javac -ErrorAction Stop).Source
 $javaExe = Join-Path $jdkBin 'java.exe'
@@ -11,6 +12,10 @@ try {
     $sources = @(Get-ChildItem src/main/java -Recurse -Filter *.java | ForEach-Object FullName)
     & javac --release 17 -Xlint:all,-classfile -encoding UTF-8 -cp 'lib/*' -d build/classes @sources
     if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao' }
+    if ($SomenteClasses) {
+        Write-Host 'Compilacao concluida: build/classes'
+        return
+    }
     & $jarExe --create --file build/ep1.jar -C build/classes .
     if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar JAR' }
     Write-Host 'Compilacao concluida: build/ep1.jar'

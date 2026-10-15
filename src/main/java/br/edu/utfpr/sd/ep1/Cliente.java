@@ -3,15 +3,21 @@ package br.edu.utfpr.sd.ep1;
 import com.google.gson.JsonObject;
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.Arrays;
 
-/** Cliente de console da EP-1: cadastro, login e CRUD da propria conta. */
+/** Inicia a GUI Swing por padrao; --console preserva o cliente de terminal. */
 public final class Cliente {
     private final EntradaConsole console = new EntradaConsole();
     private String token;
 
     public static void main(String[] args) {
+        if (args.length == 0 || !args[0].equals("--console")) {
+            ClienteGui.main(args);
+            return;
+        }
+        args = Arrays.copyOfRange(args, 1, args.length);
         if (args.length != 0 && args.length != 2) {
-            System.err.println("Uso: cliente.sh [ip porta]");
+            System.err.println("Uso: cliente.sh [--console] [ip porta]");
             System.exit(1);
         }
         try { new Cliente().executar(args); }

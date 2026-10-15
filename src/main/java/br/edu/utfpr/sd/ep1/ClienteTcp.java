@@ -38,6 +38,7 @@ public final class ClienteTcp implements AutoCloseable {
             novo.setSoTimeout(timeoutMs);
             entrada = new BufferedInputStream(novo.getInputStream());
             socket = novo;
+            log.println("[TCP] Conectado a " + host + ":" + porta);
         } catch (IOException | RuntimeException e) {
             novo.close();
             throw e;
@@ -56,21 +57,29 @@ public final class ClienteTcp implements AutoCloseable {
                 socket.getOutputStream().flush();
                 Protocolo.Linha linha = Protocolo.ler(entrada);
                 if (linha == null) throw new EOFException("Servidor fechou a conexao sem resposta");
-                if (linha.excedida()) throw new ErroProtocoloException("Resposta excede o limite de bytes");
+                if (linha.excedida()) {
+                    log.println("S -> C [resposta acima do limite; prefixo Base64] "
+                            + java.util.Base64.getEncoder().encodeToString(linha.bytes()));
+                    throw new ErroProtocoloException("Resposta excede o limite de bytes");
+                }
                 JsonObject resposta;
                 try {
                     String texto = linha.texto();
                     log.println("S -> C " + texto);
                     resposta = Protocolo.interpretar(texto);
                 } catch (CharacterCodingException | RuntimeException e) {
+                    if (e instanceof CharacterCodingException) log.println("S -> C [UTF-8 invalido; Base64] "
+                            + java.util.Base64.getEncoder().encodeToString(linha.bytes()));
                     throw new ErroProtocoloException("Resposta JSON/UTF-8 invalida", e);
                 }
                 ValidacaoResposta.conferir(req, resposta);
                 return resposta;
             } catch (ErroProtocoloException e) {
+                log.println("[TCP] Resposta rejeitada: " + e.getMessage());
                 fecharAposFalha(e);
                 throw e;
             } catch (IOException e) {
+                log.println("[TCP] Falha na comunicacao: " + e.getMessage());
                 fecharAposFalha(e);
                 if (tentativa == 1) throw e;
                 log.println("Conexao interrompida; reconectando e reenviando a mesma requisicao...");
@@ -88,6 +97,9 @@ public final class ClienteTcp implements AutoCloseable {
         Socket anterior = socket;
         socket = null;
         entrada = null;
-        if (anterior != null) anterior.close();
+        if (anterior != null) {
+            anterior.close();
+            log.println("[TCP] Conexao encerrada com " + host + ":" + porta);
+        }
     }
 }
