@@ -1,3 +1,5 @@
+> Relatório histórico. A entrega atual usa MySQL/JDBC; consulte [RELATORIO_EP2.md](RELATORIO_EP2.md).
+
 # Validação da EP-1 sem banco de dados
 
 Data: 14/10/2026. Windows, JDK 21, alvo Java 17. Comando: `./testar.ps1`, sem serviço de banco e sem driver de banco no classpath.

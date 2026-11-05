@@ -7,12 +7,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import javax.swing.*;
 
-/** Mesmo ponto de entrada usado pelo F6: GUI visível e servidor real em arquivo isolado. */
+/** Mesmo ponto de entrada usado pelo F6: GUI visível e servidor real e banco MySQL isolado. */
 public final class TesteAplicacao {
     private TesteAplicacao() { }
     public static void main(String[] args) throws Exception {
-        Path arquivo = Files.createTempDirectory(Path.of("build"), "netbeans-").resolve("estado.json");
-        ClienteGui janela = Aplicacao.iniciar(0, arquivo);
+        try (SuporteMySqlTeste banco = new SuporteMySqlTeste(args)) {
+        banco.limpar();
+        ClienteGui janela = Aplicacao.iniciar(0, banco.arquivo);
         try {
             SwingUtilities.invokeAndWait(() -> {
                 if (!janela.isShowing()) throw new AssertionError("A janela não abriu");
@@ -32,10 +33,12 @@ public final class TesteAplicacao {
                 if (!((JLabel) componente(janela, "status")).getText().startsWith("201"))
                     throw new AssertionError("Cadastro pela aplicação integrada falhou");
             });
-            if (new RepositorioArquivo(arquivo).carregar().usuarios.size() != 1)
+            if (banco.repositorio.carregar().usuarios.stream().filter(u -> u.user.equals("netbeans")).count() != 1)
                 throw new AssertionError("Cadastro não foi persistido");
         } finally {
             SwingUtilities.invokeAndWait(() -> janela.dispatchEvent(new WindowEvent(janela, WindowEvent.WINDOW_CLOSING)));
+            banco.limpar();
+        }
         }
         System.out.println("Aplicacao: GUI visivel, cadastro TCP, persistencia e encerramento aprovados.");
     }

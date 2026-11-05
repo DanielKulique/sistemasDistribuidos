@@ -3,7 +3,7 @@ id: 'urn:br:edu:utfpr:pg:sd:reserva-salas'
 
 info:
   title: Reserva de Salas · Protocolo de Mensagens
-  version: 2.4.0
+  version: 2.8.0
   description: |
     Protocolo cliente/servidor do **Sistema Inteligente de Reserva de Salas de Reunião/Estudo em Campus**
     (Sistemas Distribuídosprotocolo-mermaid.md · BCC · UTFPR-PG · Prof. Dr. Richard Ribeiro).
@@ -52,8 +52,9 @@ info:
     - **3.3** Validade: 30 min sem uso; cada requisição válida renova a contagem. Token expirado → 401.
     - **3.4** O logout invalida o token; um token invalidado nunca é reutilizado.
     - **3.5** Sessão única: novo login com sessão ativa → 409.
-    - **3.6** Perfis (`role`): `user` e `admin`. Todo `register` nasce `user`.
+    - **3.6** Perfis (`role`): `user` e `admin`. Todo `register` nasce `user`. O primeiro admin é o admin inicial (regra 3.15).
     - **3.7** Operações `admin_*` e criar/alterar/remover sala exigem `admin`. Token válido sem permissão → 403.
+      A verificação usa a whitelist de tokens de admin (regra 3.14).
     - **3.8** O autor é identificado **pelo token**; o cliente nunca envia o próprio `user` para dizer quem é.
     - **3.9** (v2.1) **401 significa que o servidor não tem sessão ativa para aquele token** (ausente, inválido,
       expirado ou invalidado) ou, no `login`, que as credenciais estão erradas. Por isso o cliente pode descartar
@@ -68,6 +69,16 @@ info:
     - **3.13** (v2.3) **Remover uma conta apaga tudo dela.** `delete_user` e `admin_delete_user` apagam o cadastro, encerram a
       sessão e apagam **todas** as reservas do usuário (passadas e futuras). O `user` e o `email` ficam livres: um novo
       `register` com os mesmos dados responde 201. Assim ninguém herda reservas ou histórico de uma conta removida.
+    - **3.14** (v2.5) **Whitelist de tokens de admin.** O servidor mantém uma lista (whitelist) dos tokens com poder de
+      admin, e só ela libera as operações de admin: `admin_*`, criar/alterar/remover sala, `scope: "all"` e ações sobre
+      reservas de terceiros. Um token entra na lista quando o login é de uma conta `admin`, ou quando um admin promove um
+      usuário que está logado. Sai quando a conta é rebaixada, no logout, na expiração e na remoção da conta. A mudança
+      vale na hora, sem novo login. O `role` nunca vem do cliente: o valor do `login_response` só serve para montar a
+      tela, e um `role` enviado em qualquer requisição (fora do `admin_update_user`) é ignorado. Token fora da lista → 403.
+    - **3.15** (v2.6) **Admin inicial.** Ao iniciar sem nenhum usuário `admin` no banco (por exemplo, na primeira execução),
+      o servidor cria a conta user `admin`, email `admin@admin.com`, senha `admin`, role `admin`. Ela é igual em todos os
+      servidores, para os grupos testarem os servidores uns dos outros (o testador usa essa conta por padrão). Como o
+      último admin nunca pode ser removido nem rebaixado, sempre existe pelo menos um admin depois disso.
 
     Cada operação indica o nível de acesso na extensão `x-acesso`: `publico` (sem token), `logado`,
     `admin`, `dono` (dono da reserva) ou `dono-ou-admin`.
@@ -115,8 +126,70 @@ info:
     9. **Estados de sala**: uma nota na aba *Msg Salas* cita "fechada para limpeza, ocupado", mas `room_status` só aceita `active`/`inactive`.
     10. **`update_reservation` pelo admin**: `read_reservation` e `delete_reservation` dizem que o admin age sobre qualquer reserva; `update_reservation` não diz. Aqui ficou `x-acesso: dono`.
 
-    ## 8. Histórico de versões
+    ## 8. Horários das salas (padrão UTFPR)
 
+    - **8.1** Os horários seguem o código da UTFPR: **dia + turno + aula**. Ex.: `2M1` = segunda-feira, turno da
+      manhã, primeiro horário (07:30–08:20); `4T3` = quarta-feira, tarde, terceiro horário (14:40–15:30).
+      - dia: `2` segunda, `3` terça, `4` quarta, `5` quinta, `6` sexta, `7` sábado;
+      - turno: `M` manhã, `T` tarde, `N` noite;
+      - aula: `1` a `6` na manhã e na tarde, `1` a `5` na noite (tabela abaixo).
+    - **8.2** `slots` é a lista de horários em que a sala funciona, nesse código (ex.: `["2M1", "2M2", "4T3"]`).
+      Obrigatório no `create_room`, com pelo menos um item e sem repetir; cada dia pode ter horários diferentes.
+    - **8.3** Em reservas e consultas, `start_time` é sempre o **início** de uma aula da tabela e `end_time` o **fim**
+      de uma aula (outro valor → 400). A reserva ocupa todas as aulas entre eles, inclusive atravessando o intervalo
+      (ex.: `09:10`–`11:10` ocupa M3 e M4).
+    - **8.4** O dia sai do `date`. Se alguma aula ocupada, nesse dia, não está nos `slots` da sala (ex.: reservar
+      13:00–14:40 numa terça exige `3T1` e `3T2`), a reserva responde **409 "Horario fora do funcionamento da sala"**,
+      e `check_availability` e `list_rooms` respondem `"available": "false"`. Domingo nunca está no funcionamento.
+      Ordem dos 409 na reserva: sala `inactive` → fora do funcionamento → conflito.
+    - **8.5** `read_room` com `date` devolve a `agenda` da sala naquele dia: um item por horário da sala nesse dia da
+      semana, na ordem da tabela, com o código completo (`3T1`) e `slot_status` `"livre"` ou `"indisponivel"`
+      (reservado ou sala `inactive`). Sala que não funciona nesse dia → `agenda` vazia. Horário reservado traz `user`
+      (quem reservou) para qualquer usuário logado, como pede a Entrega 2 (item e); o `reservation_id` só vai para o
+      admin e para o dono da reserva (mesma regra do `read_reservation`).
+    - **8.6** `room_status`: `active` = sala livre para reservas, `inactive` = indisponível (manutenção, limpeza).
+    - **8.7** No `update_room`, `slots` ausente ou `[]` = não alterar; uma lista nova substitui a antiga inteira.
+      Mudar o funcionamento não apaga as reservas já feitas.
+
+    | aula | início | fim |
+    |---|---|---|
+    | `M1` | 07:30 | 08:20 |
+    | `M2` | 08:20 | 09:10 |
+    | `M3` | 09:10 | 10:00 |
+    | `M4` | 10:20 | 11:10 |
+    | `M5` | 11:10 | 12:00 |
+    | `M6` | 12:00 | 12:50 |
+    | `T1` | 13:00 | 13:50 |
+    | `T2` | 13:50 | 14:40 |
+    | `T3` | 14:40 | 15:30 |
+    | `T4` | 15:50 | 16:40 |
+    | `T5` | 16:40 | 17:30 |
+    | `T6` | 17:30 | 18:20 |
+    | `N1` | 18:40 | 19:30 |
+    | `N2` | 19:30 | 20:20 |
+    | `N3` | 20:20 | 21:10 |
+    | `N4` | 21:20 | 22:10 |
+    | `N5` | 22:10 | 23:00 |
+
+    ## 9. Histórico de versões
+
+    - **2.8.0** (horários das salas no código da UTFPR)
+      - `slots` usa o código da UTFPR, dia + turno + aula (`2M1` = segunda, manhã, primeiro horário), e cada dia pode
+        ter horários diferentes. O campo `days` da 2.7.0 sai, porque o dia já está no código (seção 8).
+      - A agenda do `read_room` lista os horários da sala no dia da semana do `date`, com o código completo (`3T1`).
+    - **2.7.0** (horários das salas, Entrega 2 itens d, e, f)
+      - Sala com horários de funcionamento, obrigatórios no `create_room` e devolvidos no `read_room` e no `list_rooms`.
+      - `start_time` e `end_time` só aceitam início e fim de aula da UTFPR; reserva fora do funcionamento da sala →
+        409 "Horario fora do funcionamento da sala".
+      - `read_room` com `date` devolve a agenda do dia (livre/indisponível e quem reservou).
+    - **2.6.0** (admin inicial; nenhuma mensagem mudou)
+      - Todo servidor cria o admin inicial (`admin` / `admin@admin.com` / senha `admin`) quando não há nenhum admin (regra 3.15).
+        Antes, como o `register` sempre cria `user` e só um admin promove, o primeiro admin precisava ser inserido no banco
+        à mão e cada grupo usava uma conta diferente.
+    - **2.5.0** (permissões de admin; nenhuma mensagem mudou)
+      - Whitelist de tokens de admin (regra 3.14): as operações de admin só aceitam tokens da lista. Rebaixar uma conta
+        tira o token dela da lista na hora, e promover coloca. Antes, um servidor que guardasse o `role` do login deixava
+        um admin rebaixado com poderes de admin até o token expirar, e nada proibia confiar num `role` vindo do cliente.
     - **2.4.0**
       - `update_user` com `user` e `password` vazios, ou `admin_update_user` com `user`, `password` e `role` vazios, respondia
         200 "Dados atualizados com sucesso" sem mudar nada. Agora responde **400 "Nenhum dado para atualizar"** (regra 2.13).
@@ -136,22 +209,25 @@ info:
       - `delete_user` com senha incorreta: de 401 para **403 "Senha incorreta"**, sem derrubar a sessão (regra 3.9).
     - **2.0.0**: versão da planilha *Protocolo de troca de Mensagens*.
   x-novidades:
-    versao: 2.4.0
-    data: 07/10/2026
-    titulo: Ajustes no protocolo (versões 2.1 a 2.4)
+    versao: 2.8.0
+    data: 04/11/2026
+    titulo: Ajustes no protocolo (versões 2.1 a 2.8)
     itens:
-      - '**E-mail (2.1):** aceita `.com.br`, `.edu.br` e domínios com vários níveis, como `alunos.utfpr.edu.br`, além de hífen no domínio e `_` antes do @.'
-      - '**Senha errada no `delete_user` (2.1):** responde **403 "Senha incorreta"** e a sessão continua. Antes era 401, que fazia o cliente sair sem o servidor encerrar o token, e o login seguinte ficava bloqueado (409) por até 30 min.'
+      - '**Horários das salas no padrão da UTFPR (2.7 e 2.8, Entrega 2 itens d/e/f):** a sala tem `slots`, os horários em que funciona, no código da UTFPR: dia + turno + aula. `2M1` = segunda, manhã, primeiro horário; `4T3` = quarta, tarde, terceiro horário. Reservas usam início e fim de aula (ex.: `13:00`–`14:40` = T1 + T2). Fora do funcionamento → 409 "Horario fora do funcionamento da sala". `read_room` com `date` mostra a agenda do dia com quem reservou. Na 2.8 o campo `days` saiu: o dia já vem no código.'
+      - '**Admin inicial (2.6):** todo servidor cria, quando não há nenhum admin, a conta `admin` com email `admin@admin.com` e senha `admin`. É a mesma em todos os grupos, e o testador já entra com ela.'
+      - '**Whitelist de admin (2.5):** as operações de admin só aceitam tokens que estão na whitelist de admin do servidor. Rebaixar alguém tira o token da lista na hora, sem esperar o logout; promover coloca; e um `role` mandado pelo cliente é ignorado.'
+      - '**Alterar usuário sem mudar nada (2.4):** `update_user` com `user` e `password` vazios (ou `admin_update_user` com os três campos vazios) responde **400 "Nenhum dado para atualizar"**, e não mais 200.'
+      - '**Remover a conta (2.3):** `delete_user` e `admin_delete_user` apagam o cadastro, a sessão e todas as reservas do usuário. O `user` e o `email` ficam livres para outra pessoa se cadastrar com os mesmos dados.'
       - '**Logout depois de 5 min parado (2.2):** a conexão pode ter sido fechada por inatividade. O cliente reconecta, reenvia o logout e só descarta o token quando recebe a resposta.'
       - '**Login simultâneo (2.2):** checar a sessão e criar o token na mesma seção crítica. Dois logins ao mesmo tempo na mesma conta: um recebe 200 e o outro 409.'
       - '**Ordem no login (2.2):** formato (400) → senha (401) → sessão ativa (409). O 409 só aparece com a senha certa, para não revelar quais contas existem.'
-      - '**Remover a conta (2.3):** `delete_user` e `admin_delete_user` apagam o cadastro, a sessão e todas as reservas do usuário. O `user` e o `email` ficam livres para outra pessoa se cadastrar com os mesmos dados.'
-      - '**Alterar usuário sem mudar nada (2.4):** `update_user` com `user` e `password` vazios (ou `admin_update_user` com os três campos vazios) responde **400 "Nenhum dado para atualizar"**, e não mais 200.'
-      - '**Testador automático (novo):** `node scripts/testar-servidor.mjs IP PORTA` roda mais de 70 testes contra o servidor de vocês e aponta o que está fora do contrato. Veja o README.'
+      - '**E-mail (2.1):** aceita `.com.br`, `.edu.br` e domínios com vários níveis, como `alunos.utfpr.edu.br`, além de hífen no domínio e `_` antes do @.'
+      - '**Senha errada no `delete_user` (2.1):** responde **403 "Senha incorreta"** e a sessão continua. Antes era 401, que fazia o cliente sair sem o servidor encerrar o token, e o login seguinte ficava bloqueado (409) por até 30 min.'
+      - '**Testador automático (novo):** `node scripts/testar-servidor.mjs IP PORTA` roda mais de 80 testes contra o servidor de vocês e aponta o que está fora do contrato. Veja o README.'
     o_que_mudar:
       - '**Cliente e servidor:** trocar a regex de e-mail.'
-      - '**Servidor:** 403 "Senha incorreta" no `delete_user`; validar o login na ordem 400 → 401 → 409; checar e criar a sessão sob o mesmo lock; ao remover uma conta, apagar cadastro, sessão e todas as reservas; responder 400 "Nenhum dado para atualizar" quando a alteração de usuário vier toda vazia.'
-      - '**Cliente:** tratar o 403 do `delete_user` sem descartar o token; reconectar e reenviar quando o socket estiver fechado; só descartar o token depois do `logout_response`.'
+      - '**Servidor:** 403 "Senha incorreta" no `delete_user`; validar o login na ordem 400 → 401 → 409; checar e criar a sessão sob o mesmo lock; ao remover uma conta, apagar cadastro, sessão e todas as reservas; responder 400 "Nenhum dado para atualizar" quando a alteração de usuário vier toda vazia; manter a whitelist de tokens de admin e liberar as operações de admin só por ela; criar o admin inicial (`admin@admin.com` / `admin`) quando não houver nenhum admin; guardar os `slots` das salas no código da UTFPR (`2M1`), validar reservas pela tabela de aulas e montar a agenda do `read_room`.'
+      - '**Cliente:** tratar o 403 do `delete_user` sem descartar o token; reconectar e reenviar quando o socket estiver fechado; só descartar o token depois do `logout_response`; usar o `role` do login só para montar a tela; no cadastro e na edição de sala, mostrar a grade da UTFPR (dias × aulas) para marcar os horários.'
   contact:
     name: Pedro Silveira e Daniel Jesus
     url: https://github.com/pedrosalvatori/protocolo-reserva-salas
@@ -283,6 +359,7 @@ operations:
         A checagem de sessão e a criação do token ficam na mesma seção crítica (v2.2, regra 3.11):
         com dois logins simultâneos, um recebe 200 e o outro 409.
       - Sessão ativa → 409 (fazer logout ou aguardar a expiração de 30 min).
+      - Se a conta for `admin`, o token entra na whitelist de admin (v2.5, regra 3.14).
     tags: [{$ref: '#/components/tags/autenticacao'}]
     messages: [{$ref: '#/channels/conexao/messages/login'}]
     reply:
@@ -398,6 +475,8 @@ operations:
     description: |
       - Mesmas regras de `update_user` (`""` = não alterar; `email` proibido), e o admin também pode alterar `role`.
       - `user`, `password` e `role` vazios ao mesmo tempo → 400 "Nenhum dado para atualizar" (v2.4, regra 2.13).
+      - Mudar o `role` atualiza a whitelist de admin na hora (v2.5, regra 3.14): promover coloca o token ativo do alvo
+        na lista e rebaixar tira. O alvo não precisa fazer login de novo para a mudança valer.
       - Rebaixar o próprio role sendo o único admin → 403 "Nao e possivel remover o ultimo administrador".
     tags: [{$ref: '#/components/tags/admin'}]
     messages: [{$ref: '#/channels/conexao/messages/admin_update_user'}]
@@ -430,6 +509,7 @@ operations:
     summary: Cadastra uma sala. Requer role admin.
     description: |
       - `room_id` é gerado pelo servidor. A sala nasce com `"room_status": "active"`.
+      - `slots` diz quando a sala funciona, no código da UTFPR: `2M1` = segunda, manhã, primeiro horário (seção 8).
       - `resources` pode ser array vazio. Nome duplicado → 409.
     tags: [{$ref: '#/components/tags/salas'}]
     messages: [{$ref: '#/channels/conexao/messages/create_room'}]
@@ -461,8 +541,9 @@ operations:
     x-acesso: logado
     summary: Lê uma sala.
     description: |
-      - Liberado para qualquer usuário logado.
-      - A agenda da sala é obtida com `list_reservations` filtrando por `room_id`.
+      - Liberado para qualquer usuário logado. Devolve os `slots` da sala.
+      - Com `date`, devolve a `agenda` do dia: cada horário da sala nesse dia da semana como "livre" ou "indisponivel"
+        e, nos reservados, quem reservou (`user`). O `reservation_id` só vai para o admin e para o dono (regra 8.5).
     tags: [{$ref: '#/components/tags/salas'}]
     messages: [{$ref: '#/channels/conexao/messages/read_room'}]
     reply:
@@ -477,6 +558,8 @@ operations:
     summary: Altera uma sala. Requer role admin.
     description: |
       - `""` é ignorado; `null` → 400. `room_id` nunca muda.
+      - `slots` ausente ou `[]` = não alterar; uma lista nova substitui a antiga inteira. Mudar o funcionamento não
+        apaga reservas já feitas (regra 8.7).
       - Reduzir `capacity` abaixo dos `participants` de uma reserva futura → 409.
       - `"room_status": "inactive"` bloqueia novas reservas, mas preserva as existentes.
       - ⚠ Pendências 3 e 5: sem `message` para o 409 de capacidade; sem forma de "não alterar" o array `resources`.
@@ -511,6 +594,7 @@ operations:
     description: |
       - **Não** reserva e não garante nada (regra 5.2).
       - Sala ocupada → 200 com `"available": "false"` (não é erro). Sala `inactive` → `"available": "false"`.
+      - Dia ou horário fora do funcionamento da sala → `"available": "false"` (regra 8.4).
     tags: [{$ref: '#/components/tags/reservas'}]
     messages: [{$ref: '#/channels/conexao/messages/check_availability'}]
     reply:
@@ -528,6 +612,8 @@ operations:
         com pedidos simultâneos, o primeiro recebe 201 e o segundo 409.
       - Respondem 400: `end_time <= start_time`, data passada e `participants > capacity`.
       - Sala `inactive` → 409 "Sala indisponivel para reserva".
+      - `start_time` e `end_time` precisam ser início e fim de horário da UTFPR (400 caso contrário). Aula ocupada que,
+        no dia da semana do `date`, não está nos `slots` da sala → 409 "Horario fora do funcionamento da sala" (regra 8.4).
     tags: [{$ref: '#/components/tags/reservas'}]
     messages: [{$ref: '#/channels/conexao/messages/create_reservation'}]
     reply:
@@ -575,6 +661,7 @@ operations:
       - `room_id` e `date` não mudam: para trocar de sala ou de dia, cancela-se e cria-se outra reserva.
       - Estender o horário passa pelo mesmo lock de `create_reservation`.
       - Reserva já encerrada → 409 "Reserva ja encerrada".
+      - Novo horário fora do funcionamento da sala → 409 "Horario fora do funcionamento da sala" (regra 8.4).
       - ⚠ Pendência 10: não está definido se o admin pode alterar reserva de terceiro.
     tags: [{$ref: '#/components/tags/reservas'}]
     messages: [{$ref: '#/channels/conexao/messages/update_reservation'}]
@@ -696,6 +783,8 @@ components:
       examples:
         - name: requisicao
           payload: {"op": "login", "email": "joao.silva@email.com", "password": "senha123"}
+        - name: admin inicial (regra 3.15)
+          payload: {"op": "login", "email": "admin@admin.com", "password": "admin"}
 
     login_response:
       name: login_response
@@ -1167,7 +1256,7 @@ components:
       summary: 'C → S · cadastra uma sala (admin)'
       payload:
         type: object
-        required: [op, token, name, capacity, location, resources]
+        required: [op, token, name, capacity, location, resources, slots]
         properties:
           op: {type: string, const: create_room}
           token: {$ref: '#/components/schemas/token'}
@@ -1175,9 +1264,10 @@ components:
           capacity: {$ref: '#/components/schemas/capacity'}
           location: {$ref: '#/components/schemas/location'}
           resources: {$ref: '#/components/schemas/resources'}
+          slots: {$ref: '#/components/schemas/slots'}
       examples:
         - name: requisicao
-          payload: {"op": "create_room", "token": "c6a07b8585ace1409236251c4eccbe4a2807bb4a7cf1d086de6d603c2794796b", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"]}
+          payload: {"op": "create_room", "token": "c6a07b8585ace1409236251c4eccbe4a2807bb4a7cf1d086de6d603c2794796b", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"], "slots": ["2M1", "2M2", "2M3", "3T1", "3T2", "3T3", "5N1", "5N2"]}
 
     create_room_response:
       name: create_room_response
@@ -1234,7 +1324,7 @@ components:
           end_time: [date, start_time]
       examples:
         - name: com filtros
-          payload: {"op": "list_rooms", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "date": "2026-09-15", "start_time": "14:00", "end_time": "16:00", "min_capacity": "6"}
+          payload: {"op": "list_rooms", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "date": "2026-09-15", "start_time": "13:00", "end_time": "14:40", "min_capacity": "6"}
         - name: sem filtros
           payload: {"op": "list_rooms", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"}
 
@@ -1264,7 +1354,7 @@ components:
           - $ref: '#/components/schemas/E500'
       examples:
         - name: '200'
-          payload: {"op": "list_rooms_response", "status": "200", "message": "Consulta realizada com sucesso", "count": "1", "rooms": [{"room_id": "1", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"], "room_status": "active", "available": "true"}]}
+          payload: {"op": "list_rooms_response", "status": "200", "message": "Consulta realizada com sucesso", "count": "1", "rooms": [{"room_id": "1", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"], "room_status": "active", "slots": ["2M1", "2M2", "2M3", "3T1", "3T2", "3T3", "5N1", "5N2"], "available": "true"}]}
         - name: '400'
           payload: {"op": "list_rooms_response", "status": "400", "message": "Filtros em formato invalido"}
         - name: '401'
@@ -1280,9 +1370,15 @@ components:
           op: {type: string, const: read_room}
           token: {$ref: '#/components/schemas/token'}
           room_id: {$ref: '#/components/schemas/room_id'}
+          date:
+            description: Opcional. Com date, a resposta traz a agenda da sala nesse dia (regra 8.5).
+            allOf:
+              - $ref: '#/components/schemas/date'
       examples:
         - name: requisicao
           payload: {"op": "read_room", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "room_id": "1"}
+        - name: com agenda do dia
+          payload: {"op": "read_room", "token": "c6a07b8585ace1409236251c4eccbe4a2807bb4a7cf1d086de6d603c2794796b", "room_id": "1", "date": "2026-09-15"}
 
     read_room_response:
       name: read_room_response
@@ -1297,7 +1393,7 @@ components:
         oneOf:
           - title: '200 · Consulta realizada com sucesso'
             type: object
-            required: [room_id, name, capacity, location, resources, room_status]
+            required: [room_id, name, capacity, location, resources, room_status, slots]
             properties:
               status: {const: '200'}
               message: {const: Consulta realizada com sucesso}
@@ -1307,13 +1403,23 @@ components:
               location: {$ref: '#/components/schemas/location'}
               resources: {$ref: '#/components/schemas/resources'}
               room_status: {$ref: '#/components/schemas/room_status'}
+              slots: {$ref: '#/components/schemas/slots'}
+              date: {$ref: '#/components/schemas/date'}
+              agenda:
+                type: array
+                description: Só quando a requisição traz date. Um item por horário da sala, na ordem da tabela.
+                items: {$ref: '#/components/schemas/Horario'}
           - $ref: '#/components/schemas/E400_dados'
           - $ref: '#/components/schemas/E401_token'
           - $ref: '#/components/schemas/E404_sala'
           - $ref: '#/components/schemas/E500'
       examples:
         - name: '200'
-          payload: {"op": "read_room_response", "status": "200", "message": "Consulta realizada com sucesso", "room_id": "1", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"], "room_status": "active"}
+          payload: {"op": "read_room_response", "status": "200", "message": "Consulta realizada com sucesso", "room_id": "1", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"], "room_status": "active", "slots": ["2M1", "2M2", "2M3", "3T1", "3T2", "3T3", "5N1", "5N2"]}
+        - name: 200 com agenda (admin)
+          payload: {"op": "read_room_response", "status": "200", "message": "Consulta realizada com sucesso", "room_id": "1", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"], "room_status": "active", "slots": ["2M1", "2M2", "2M3", "3T1", "3T2", "3T3", "5N1", "5N2"], "date": "2026-09-15", "agenda": [{"slot": "3T1", "start_time": "13:00", "end_time": "13:50", "slot_status": "indisponivel", "user": "joao", "reservation_id": "27"}, {"slot": "3T2", "start_time": "13:50", "end_time": "14:40", "slot_status": "indisponivel", "user": "joao", "reservation_id": "27"}, {"slot": "3T3", "start_time": "14:40", "end_time": "15:30", "slot_status": "livre"}]}
+        - name: 200 com agenda (outro usuário)
+          payload: {"op": "read_room_response", "status": "200", "message": "Consulta realizada com sucesso", "room_id": "1", "name": "Sala de Estudo B12", "capacity": "12", "location": "Bloco B - 1 andar", "resources": ["projetor", "tv"], "room_status": "active", "slots": ["2M1", "2M2", "2M3", "3T1", "3T2", "3T3", "5N1", "5N2"], "date": "2026-09-15", "agenda": [{"slot": "3T1", "start_time": "13:00", "end_time": "13:50", "slot_status": "indisponivel", "user": "joao"}, {"slot": "3T2", "start_time": "13:50", "end_time": "14:40", "slot_status": "indisponivel", "user": "joao"}, {"slot": "3T3", "start_time": "14:40", "end_time": "15:30", "slot_status": "livre"}]}
         - name: '400'
           payload: {"op": "read_room_response", "status": "400", "message": "Dados em formato invalido"}
         - name: '401'
@@ -1353,9 +1459,14 @@ components:
             anyOf:
               - $ref: '#/components/schemas/room_status'
               - $ref: '#/components/schemas/nao_alterar'
+          slots:
+            description: Novos horários de funcionamento, no código da UTFPR; ausente ou [] para manter (regra 8.7).
+            anyOf:
+              - $ref: '#/components/schemas/slots'
+              - $ref: '#/components/schemas/lista_vazia'
       examples:
         - name: requisicao
-          payload: {"op": "update_room", "token": "c6a07b8585ace1409236251c4eccbe4a2807bb4a7cf1d086de6d603c2794796b", "room_id": "1", "name": "", "capacity": "16", "location": "", "resources": ["projetor", "tv", "quadro"], "room_status": "active"}
+          payload: {"op": "update_room", "token": "c6a07b8585ace1409236251c4eccbe4a2807bb4a7cf1d086de6d603c2794796b", "room_id": "1", "name": "", "capacity": "16", "location": "", "resources": ["projetor", "tv", "quadro"], "room_status": "active", "slots": ["2M1", "2M2", "2M3", "3T1", "3T2", "3T3", "3T4", "5N1", "5N2"]}
 
     update_room_response:
       name: update_room_response
@@ -1459,7 +1570,7 @@ components:
           end_time: {$ref: '#/components/schemas/end_time'}
       examples:
         - name: requisicao
-          payload: {"op": "check_availability", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "room_id": "1", "date": "2026-09-15", "start_time": "14:00", "end_time": "16:00"}
+          payload: {"op": "check_availability", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "room_id": "1", "date": "2026-09-15", "start_time": "13:00", "end_time": "14:40"}
 
     check_availability_response:
       name: check_availability_response
@@ -1489,7 +1600,7 @@ components:
           - $ref: '#/components/schemas/E500'
       examples:
         - name: '200'
-          payload: {"op": "check_availability_response", "status": "200", "message": "Consulta realizada com sucesso", "room_id": "1", "date": "2026-09-15", "start_time": "14:00", "end_time": "16:00", "available": "false"}
+          payload: {"op": "check_availability_response", "status": "200", "message": "Consulta realizada com sucesso", "room_id": "1", "date": "2026-09-15", "start_time": "13:00", "end_time": "14:40", "available": "false"}
         - name: '400'
           payload: {"op": "check_availability_response", "status": "400", "message": "Dados em formato invalido"}
         - name: '401'
@@ -1514,7 +1625,7 @@ components:
           participants: {$ref: '#/components/schemas/participants'}
       examples:
         - name: requisicao
-          payload: {"op": "create_reservation", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "room_id": "1", "date": "2026-09-15", "start_time": "14:00", "end_time": "16:00", "topic": "Reuniao de projeto", "participants": "6"}
+          payload: {"op": "create_reservation", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "room_id": "1", "date": "2026-09-15", "start_time": "13:00", "end_time": "14:40", "topic": "Reuniao de projeto", "participants": "6"}
 
     create_reservation_response:
       name: create_reservation_response
@@ -1539,6 +1650,7 @@ components:
           - $ref: '#/components/schemas/E404_sala'
           - $ref: '#/components/schemas/E409_periodo'
           - $ref: '#/components/schemas/E409_sala_indisponivel'
+          - $ref: '#/components/schemas/E409_fora_funcionamento'
           - $ref: '#/components/schemas/E500'
       examples:
         - name: '201'
@@ -1553,6 +1665,8 @@ components:
           payload: {"op": "create_reservation_response", "status": "409", "message": "Sala ja reservada no periodo solicitado"}
         - name: 409 sala inativa
           payload: {"op": "create_reservation_response", "status": "409", "message": "Sala indisponivel para reserva"}
+        - name: 409 fora do funcionamento
+          payload: {"op": "create_reservation_response", "status": "409", "message": "Horario fora do funcionamento da sala"}
 
     list_reservations:
       name: list_reservations
@@ -1598,7 +1712,7 @@ components:
           - $ref: '#/components/schemas/E500'
       examples:
         - name: '200'
-          payload: {"op": "list_reservations_response", "status": "200", "message": "Consulta realizada com sucesso", "count": "1", "reservations": [{"reservation_id": "27", "room_id": "1", "name": "Sala de Estudo B12", "user": "joao", "date": "2026-09-15", "start_time": "14:00", "end_time": "16:00", "topic": "Reuniao de projeto", "participants": "6"}]}
+          payload: {"op": "list_reservations_response", "status": "200", "message": "Consulta realizada com sucesso", "count": "1", "reservations": [{"reservation_id": "27", "room_id": "1", "name": "Sala de Estudo B12", "user": "joao", "date": "2026-09-15", "start_time": "13:00", "end_time": "14:40", "topic": "Reuniao de projeto", "participants": "6"}]}
         - name: '400'
           payload: {"op": "list_reservations_response", "status": "400", "message": "Filtros em formato invalido"}
         - name: '401'
@@ -1654,7 +1768,7 @@ components:
           - $ref: '#/components/schemas/E500'
       examples:
         - name: '200'
-          payload: {"op": "read_reservation_response", "status": "200", "message": "Consulta realizada com sucesso", "reservation_id": "27", "room_id": "1", "name": "Sala de Estudo B12", "user": "joao", "date": "2026-09-15", "start_time": "14:00", "end_time": "16:00", "topic": "Reuniao de projeto", "participants": "6", "created_at": "2026-09-09 15:10:44"}
+          payload: {"op": "read_reservation_response", "status": "200", "message": "Consulta realizada com sucesso", "reservation_id": "27", "room_id": "1", "name": "Sala de Estudo B12", "user": "joao", "date": "2026-09-15", "start_time": "13:00", "end_time": "14:40", "topic": "Reuniao de projeto", "participants": "6", "created_at": "2026-09-09 15:10:44"}
         - name: '400'
           payload: {"op": "read_reservation_response", "status": "400", "message": "Dados em formato invalido"}
         - name: '401'
@@ -1697,7 +1811,7 @@ components:
               - $ref: '#/components/schemas/nao_alterar'
       examples:
         - name: requisicao
-          payload: {"op": "update_reservation", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "reservation_id": "27", "start_time": "", "end_time": "17:00", "topic": "", "participants": "8"}
+          payload: {"op": "update_reservation", "token": "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9", "reservation_id": "27", "start_time": "", "end_time": "15:30", "topic": "", "participants": "8"}
 
     update_reservation_response:
       name: update_reservation_response
@@ -1721,6 +1835,7 @@ components:
           - $ref: '#/components/schemas/E404_reserva'
           - $ref: '#/components/schemas/E409_periodo'
           - $ref: '#/components/schemas/E409_encerrada'
+          - $ref: '#/components/schemas/E409_fora_funcionamento'
           - $ref: '#/components/schemas/E500'
       examples:
         - name: '200'
@@ -1737,6 +1852,8 @@ components:
           payload: {"op": "update_reservation_response", "status": "409", "message": "Sala ja reservada no periodo solicitado"}
         - name: 409 reserva encerrada
           payload: {"op": "update_reservation_response", "status": "409", "message": "Reserva ja encerrada"}
+        - name: 409 fora do funcionamento
+          payload: {"op": "update_reservation_response", "status": "409", "message": "Horario fora do funcionamento da sala"}
 
     delete_reservation:
       name: delete_reservation
@@ -1898,7 +2015,7 @@ components:
     room_status:
       type: string
       enum: [active, inactive]
-      description: '"inactive" (manutenção) não aceita novas reservas. Nome distinto de status para não colidir com o código da resposta.'
+      description: '"active" = livre para reservas; "inactive" = indisponível (manutenção, limpeza), não aceita novas reservas. Nome distinto de status para não colidir com o código da resposta.'
     reservation_id:
       type: string
       pattern: '^[0-9]{1,10}$'
@@ -1911,14 +2028,57 @@ components:
       examples: ['2026-09-15']
     start_time:
       type: string
-      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
-      description: Hora local do servidor (America/Sao_Paulo), 24 h.
-      examples: ['14:00']
+      enum: ['07:30', '08:20', '09:10', '10:20', '11:10', '12:00', '13:00', '13:50', '14:40', '15:50', '16:40', '17:30', '18:40', '19:30', '20:20', '21:20', '22:10']
+      description: Início de um horário de aula da UTFPR (seção 8), hora local do servidor (America/Sao_Paulo).
+      examples: ['13:00']
     end_time:
       type: string
-      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
-      description: Deve ser maior que start_time e no mesmo dia (400 caso contrário).
-      examples: ['16:00']
+      enum: ['08:20', '09:10', '10:00', '11:10', '12:00', '12:50', '13:50', '14:40', '15:30', '16:40', '17:30', '18:20', '19:30', '20:20', '21:10', '22:10', '23:00']
+      description: Fim de um horário de aula da UTFPR (seção 8). Deve ser depois do start_time, no mesmo dia (400 caso contrário).
+      examples: ['14:40']
+    slot:
+      type: string
+      pattern: '^[2-7](M[1-6]|T[1-6]|N[1-5])$'
+      description: 'Horário no código da UTFPR, dia + turno + aula: `2M1` = segunda, manhã, primeiro horário. Dia de 2 (segunda) a 7 (sábado); turno M, T ou N; aula de 1 a 6 (M, T) ou de 1 a 5 (N). Seção 8.'
+      examples: ['2M1']
+      x-dias:
+        '2': segunda
+        '3': terça
+        '4': quarta
+        '5': quinta
+        '6': sexta
+        '7': sábado
+      x-horarios:
+        M1: ['07:30', '08:20']
+        M2: ['08:20', '09:10']
+        M3: ['09:10', '10:00']
+        M4: ['10:20', '11:10']
+        M5: ['11:10', '12:00']
+        M6: ['12:00', '12:50']
+        T1: ['13:00', '13:50']
+        T2: ['13:50', '14:40']
+        T3: ['14:40', '15:30']
+        T4: ['15:50', '16:40']
+        T5: ['16:40', '17:30']
+        T6: ['17:30', '18:20']
+        N1: ['18:40', '19:30']
+        N2: ['19:30', '20:20']
+        N3: ['20:20', '21:10']
+        N4: ['21:20', '22:10']
+        N5: ['22:10', '23:00']
+    slots:
+      type: array
+      items: {$ref: '#/components/schemas/slot'}
+      minItems: 1
+      uniqueItems: true
+      description: Horários em que a sala funciona, no código da UTFPR (seção 8).
+      examples: [['2M1', '2M2', '2M3', '3T1', '3T2', '3T3', '5N1', '5N2']]
+    lista_vazia:
+      title: '[] (não alterar)'
+      type: array
+      items: {type: string}
+      maxItems: 0
+      description: Em update_room, slots vazio mantém os horários atuais.
     topic:
       type: string
       pattern: '^[A-Za-z0-9 ,.-]{1,60}$'
@@ -1973,7 +2133,7 @@ components:
       title: Sala
       type: object
       description: Item de `rooms` (list_rooms). `available` só aparece quando date, start_time e end_time são enviados.
-      required: [room_id, name, capacity, location, resources, room_status]
+      required: [room_id, name, capacity, location, resources, room_status, slots]
       properties:
         room_id: {$ref: '#/components/schemas/room_id'}
         name: {$ref: '#/components/schemas/name'}
@@ -1981,7 +2141,23 @@ components:
         location: {$ref: '#/components/schemas/location'}
         resources: {$ref: '#/components/schemas/resources'}
         room_status: {$ref: '#/components/schemas/room_status'}
+        slots: {$ref: '#/components/schemas/slots'}
         available: {$ref: '#/components/schemas/available'}
+    Horario:
+      title: Horário da agenda
+      type: object
+      description: Item de `agenda` (read_room com date). Horário reservado traz `user` (quem reservou); `reservation_id` só aparece para o admin e para o dono da reserva.
+      required: [slot, start_time, end_time, slot_status]
+      properties:
+        slot: {$ref: '#/components/schemas/slot'}
+        start_time: {$ref: '#/components/schemas/start_time'}
+        end_time: {$ref: '#/components/schemas/end_time'}
+        slot_status:
+          type: string
+          enum: [livre, indisponivel]
+          description: '"indisponivel" quando o horário está reservado ou a sala está inactive.'
+        user: {$ref: '#/components/schemas/user'}
+        reservation_id: {$ref: '#/components/schemas/reservation_id'}
     Reserva:
       title: Reserva
       type: object
@@ -2089,6 +2265,11 @@ components:
       title: '409 · Sala possui reservas ativas'
       type: object
       properties: {status: {const: '409'}, message: {const: Sala possui reservas ativas}}
+    E409_fora_funcionamento:
+      title: '409 · Horario fora do funcionamento da sala'
+      type: object
+      description: Aula ocupada que, no dia da semana do date, não está nos slots da sala (regra 8.4).
+      properties: {status: {const: '409'}, message: {const: Horario fora do funcionamento da sala}}
     E409_periodo:
       title: '409 · Sala ja reservada no periodo solicitado'
       type: object

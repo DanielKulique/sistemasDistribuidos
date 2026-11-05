@@ -1,3 +1,5 @@
+> Relatório histórico. A entrega atual usa MySQL/JDBC; consulte [RELATORIO_EP2.md](RELATORIO_EP2.md).
+
 # Validação da execução NetBeans
 
 Data: 15/10/2026. JDK 21, alvo Java 17, Windows.

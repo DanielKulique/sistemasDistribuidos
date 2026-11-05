@@ -9,6 +9,7 @@ rm -rf -- "$PROJECT_DIR/build/classes"
 mkdir -p "$PROJECT_DIR/build/classes"
 sources=("$PROJECT_DIR"/src/main/java/br/edu/utfpr/sd/ep1/*.java)
 javac --release 17 -Xlint:all,-classfile -encoding UTF-8 -cp "$PROJECT_DIR/lib/*" -d "$PROJECT_DIR/build/classes" "${sources[@]}"
+cp -R "$PROJECT_DIR/src/main/resources/." "$PROJECT_DIR/build/classes/"
 if [[ "${1:-}" == "--classes-only" ]]; then
     echo 'Compilacao concluida: build/classes'
     exit 0

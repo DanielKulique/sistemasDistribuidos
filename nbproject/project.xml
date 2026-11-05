@@ -3,7 +3,7 @@
   <type>org.netbeans.modules.ant.freeform</type>
   <configuration>
     <general-data xmlns="http://www.netbeans.org/ns/freeform-project/1">
-      <name>EP1 - Reserva de salas</name>
+      <name>EP2 - Reserva de salas</name>
       <folders>
         <source-folder><label>Fontes Java</label><type>java</type><location>src/main/java</location></source-folder>
         <source-folder><label>Testes Java</label><type>java</type><location>src/test/java</location></source-folder>
@@ -29,20 +29,21 @@
           <ide-action name="run"/><ide-action name="build"/><ide-action name="test"/><ide-action name="clean"/>
           <action><label>Executar somente servidor</label><target>run-server</target></action>
           <action><label>Executar somente cliente GUI</label><target>run-client</target></action>
+          <action><label>Testar conexao MySQL</label><target>test-mysql</target></action>
         </context-menu>
       </view>
     </general-data>
     <java-data xmlns="http://www.netbeans.org/ns/freeform-project-java/5">
       <compilation-unit>
         <package-root>src/main/java</package-root>
-        <classpath mode="compile">lib/gson-2.14.0.jar</classpath>
-        <classpath mode="execute">build/classes:lib/gson-2.14.0.jar</classpath>
+        <classpath mode="compile">lib/gson-2.14.0.jar:lib/mariadb-java-client-3.5.11.jar</classpath>
+        <classpath mode="execute">build/classes:lib/gson-2.14.0.jar:lib/mariadb-java-client-3.5.11.jar</classpath>
         <built-to>build/classes</built-to><source-level>17</source-level>
       </compilation-unit>
       <compilation-unit>
         <package-root>src/test/java</package-root><unit-tests/>
-        <classpath mode="compile">build/classes:lib/gson-2.14.0.jar</classpath>
-        <classpath mode="execute">build/test-classes:build/classes:lib/gson-2.14.0.jar</classpath>
+        <classpath mode="compile">build/classes:lib/gson-2.14.0.jar:lib/mariadb-java-client-3.5.11.jar</classpath>
+        <classpath mode="execute">build/test-classes:build/classes:lib/gson-2.14.0.jar:lib/mariadb-java-client-3.5.11.jar</classpath>
         <built-to>build/test-classes</built-to><source-level>17</source-level>
       </compilation-unit>
     </java-data>

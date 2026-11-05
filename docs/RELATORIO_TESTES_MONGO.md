@@ -1,4 +1,4 @@
-> Histórico anterior à persistência em arquivo. Para a versão atual, consulte RELATORIO_TESTES_ARQUIVO.md.
+> Relatório histórico. A entrega atual usa MySQL/JDBC; consulte [RELATORIO_EP2.md](RELATORIO_EP2.md).
 
 # Validação da migração para MongoDB
 

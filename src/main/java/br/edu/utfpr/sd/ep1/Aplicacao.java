@@ -15,7 +15,7 @@ public final class Aplicacao {
     private Aplicacao() { }
 
     static ClienteGui iniciar(int porta, Path arquivo) throws IOException, InterruptedException, InvocationTargetException {
-        UsuarioService usuarios = new UsuarioService(new RepositorioArquivo(arquivo), Clock.systemUTC());
+        UsuarioService usuarios = new UsuarioService(new RepositorioMySql(ConfiguracaoMySql.carregar(arquivo)), Clock.systemUTC());
         ServidorTcp servidor = new ServidorTcp(porta, usuarios, System.out);
         Thread atendimento = new Thread(() -> {
             try { servidor.executar(); }
@@ -43,16 +43,16 @@ public final class Aplicacao {
             try { servidor.close(); } catch (IOException falha) { e.addSuppressed(falha); }
             throw e;
         }
-        System.out.println("Aplicação local iniciada. Dados: " + arquivo.toAbsolutePath());
+        System.out.println("Aplicação local iniciada. Configuracao MySQL: " + arquivo.toAbsolutePath());
         System.out.println("Cliente e servidor registram todos os JSONs nesta saída.");
         return janela[0];
     }
 
     public static void main(String[] args) {
         try {
-            if (args.length > 2) throw new IllegalArgumentException("Uso: Aplicacao [porta] [arquivo-dados.json]");
+            if (args.length > 2) throw new IllegalArgumentException("Uso: Aplicacao [porta] [config/mysql.properties]");
             int porta = args.length > 0 ? EntradaConsole.validarPorta(args[0]) : 5000;
-            Path arquivo = Path.of(args.length > 1 ? args[1] : "data/ep1.json");
+            Path arquivo = Path.of(args.length > 1 ? args[1] : "config/mysql.properties");
             iniciar(porta, arquivo);
         } catch (Exception e) {
             if (e instanceof InterruptedException) Thread.currentThread().interrupt();

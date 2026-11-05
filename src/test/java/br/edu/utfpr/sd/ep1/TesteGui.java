@@ -52,7 +52,7 @@ public final class TesteGui {
                 preencher("nome", "usuario");
                 preencher("senha", "senha123");
                 clicar("cadastrar", "201");
-                conferir(memoria.carregar().usuarios.size() == 1, "Cadastro pela GUI");
+                conferir(memoria.carregar().usuarios.stream().filter(u -> u.role.equals("user")).count() == 1, "Cadastro pela GUI");
                 preencher("senha", "errada");
                 clicar("entrar", "401");
                 conferir(habilitado("host"), "Login incorreto deve manter tela de acesso");
@@ -78,7 +78,7 @@ public final class TesteGui {
                 preencher("senhaExclusao", "nova123");
                 confirmarExclusao();
                 clicar("excluir", "200");
-                conferir(memoria.carregar().usuarios.isEmpty() && memoria.carregar().sessoes.isEmpty(), "Exclusao deve remover conta e sessao");
+                conferir(memoria.carregar().usuarios.stream().noneMatch(u -> u.role.equals("user")) && memoria.carregar().sessoes.isEmpty(), "Exclusao deve remover conta e sessao");
                 imagem("build/gui-acesso.png");
                 // Fechar a janela autenticada deve confirmar logout no servidor antes de descartar a sessao.
                 preencher("nome", "outro");

@@ -1,4 +1,4 @@
-> Histórico da versão MySQL anterior à migração. Consulte RELATORIO_TESTES_MONGO.md para a validação atual.
+> Relatório histórico. A entrega atual usa MySQL/JDBC; consulte [RELATORIO_EP2.md](RELATORIO_EP2.md).
 
 # Bateria de testes da EP-1 — funcionalidades, TCP e protocolo
 

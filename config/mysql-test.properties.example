@@ -1,0 +1,6 @@
+# Banco separado; as baterias recusam qualquer outro nome.
+host=127.0.0.1
+port=3306
+database=ep1_reserva_salas_teste
+user=ep1_teste
+password=SUBSTITUA_PELA_SENHA_LOCAL_DE_TESTES

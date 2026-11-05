@@ -12,6 +12,7 @@ try {
     $sources = @(Get-ChildItem src/main/java -Recurse -Filter *.java | ForEach-Object FullName)
     & javac --release 17 -Xlint:all,-classfile -encoding UTF-8 -cp 'lib/*' -d build/classes @sources
     if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao' }
+    Copy-Item src/main/resources/* build/classes -Recurse -Force
     if ($SomenteClasses) {
         Write-Host 'Compilacao concluida: build/classes'
         return

@@ -266,12 +266,10 @@ public final class TesteComunicacao {
             conferir(!res.has("password") && !res.has("senha_hash"), "Consulta expos senha");
         });
         caso("Ultimo administrador nao pode ser excluido", () -> {
-            String token = cadastrarLogar("administrador");
-            new RepositorioArquivo(config).transacionar(banco -> {
-                banco.usuarios.stream().filter(u -> u.user.equals("administrador")).findFirst().orElseThrow().role = "admin";
-                return Protocolo.resposta("update_user_response", "200", "Dados atualizados com sucesso");
-            });
-            JsonObject res = chamar(req("delete_user", "token", token, "password", "senha123"));
+            JsonObject loginAdmin = chamar(req("login", "email", "admin@admin.com", "password", "admin"));
+            status(loginAdmin, "200");
+            String token = Protocolo.string(loginAdmin, "token");
+            JsonObject res = chamar(req("delete_user", "token", token, "password", "admin"));
             status(res, "403");
             conferir("Nao e possivel remover o ultimo administrador".equals(Protocolo.string(res, "message")), "Mensagem de protecao incorreta");
             status(chamar(req("read_user", "token", token)), "200");
@@ -281,7 +279,7 @@ public final class TesteComunicacao {
     private static void clientesSimulados() {
         caso("Cliente aceita todas as variantes de resposta extraidas do AsyncAPI", () -> {
             JsonObject fixture = Protocolo.GSON.fromJson(Files.readString(Path.of("src/test/resources/respostas-ep1.json")), JsonObject.class);
-            conferir("2.4.0".equals(Protocolo.string(fixture, "versao")), "Fixture corresponde a outra versao do protocolo");
+            conferir("2.8.0".equals(Protocolo.string(fixture, "versao")), "Fixture corresponde a outra versao do protocolo");
             for (var valor : fixture.getAsJsonArray("casos")) {
                 JsonObject dados = valor.getAsJsonObject();
                 JsonObject esperada = dados.getAsJsonObject("resposta");

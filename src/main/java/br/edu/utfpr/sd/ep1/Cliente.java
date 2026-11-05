@@ -37,7 +37,7 @@ public final class Cliente {
                     if (token == null) {
                         System.out.println("\n1 - Cadastrar | 2 - Login | 0 - Sair");
                     } else {
-                        System.out.println("\n1 - Meu cadastro | 2 - Atualizar | 3 - Apagar conta | 4 - Logout | 0 - Sair");
+                        System.out.println("\n1 - Meu cadastro | 2 - Atualizar | 3 - Apagar conta | 4 - Logout | 5 - Salas | 6 - Administracao | 7 - Reservas | 0 - Sair");
                     }
                     String opcao = console.perguntar("Opcao: ").trim();
                     JsonObject req;
@@ -58,6 +58,9 @@ public final class Cliente {
                                 req.addProperty("password", console.perguntar("Senha de confirmacao: "));
                                 break;
                             case "4": case "0": req = requisicao("logout"); break;
+                            case "5": req = operacao("salas"); if (req == null) continue; break;
+                            case "6": req = operacao("usuarios"); if (req == null) continue; break;
+                            case "7": req = operacao("reservas"); if (req == null) continue; break;
                             default: System.out.println("Opcao invalida"); continue;
                         }
                     }
@@ -109,6 +112,25 @@ public final class Cliente {
         return req;
     }
 
+    private JsonObject operacao(String grupo) throws IOException {
+        var operacoes = OperacoesCliente.grupo(grupo);
+        for (int i = 0; i < operacoes.size(); i++) System.out.println((i + 1) + " - " + OperacoesCliente.TITULOS.get(operacoes.get(i)));
+        int indice;
+        try { indice = Integer.parseInt(console.perguntar("Operacao (0 volta): ").trim()) - 1; }
+        catch (NumberFormatException e) { System.out.println("Opcao invalida"); return null; }
+        if (indice < 0 || indice >= operacoes.size()) return null;
+        String op = operacoes.get(indice);
+        JsonObject req = requisicao(op);
+        for (String campo : OperacoesCliente.campos(op)) {
+            String ajuda = campo.equals("slots") ? " (codigos separados por virgula, ex.: 2M1,2M2)" : "";
+            if (!OperacoesCliente.obrigatorio(op, campo)) ajuda += " (Enter omite)";
+            OperacoesCliente.preencher(req, campo, console.perguntar(OperacoesCliente.rotulo(campo) + ajuda + ": "));
+        }
+        if ((op.startsWith("delete_") || op.equals("admin_delete_user"))
+                && !console.perguntar("Confirmar exclusao? Digite SIM: ").equals("SIM")) return null;
+        return req;
+    }
+
     private void tratar(JsonObject req, JsonObject resposta) throws IOException {
         String op = Protocolo.string(req, "op");
         String status = Protocolo.string(resposta, "status");
@@ -121,6 +143,8 @@ public final class Cliente {
             token = null;
         }
         System.out.println(status + " - " + Protocolo.string(resposta, "message"));
+        if (!java.util.Set.of("register", "login", "logout", "read_user", "update_user", "delete_user").contains(op))
+            System.out.println(Protocolo.GSON.toJson(resposta));
         if (op.equals("read_user") && status.equals("200")) {
             System.out.println("Usuario: " + Protocolo.string(resposta, "user")
                     + " | Email: " + Protocolo.string(resposta, "email")

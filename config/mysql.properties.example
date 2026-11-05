@@ -1,0 +1,8 @@
+# Copie para config/mysql.properties e preencha os dados do seu MySQL/XAMPP.
+# O arquivo mysql.properties e ignorado pelo Git. Nao grave senhas reais neste exemplo.
+host=127.0.0.1
+port=3306
+database=ep1_reserva_salas
+user=ep1
+# Se a conta local nao tiver senha, mantenha a chave com valor vazio: password=
+password=SUBSTITUA_PELA_SENHA_LOCAL

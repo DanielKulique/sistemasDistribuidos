@@ -1,6 +1,6 @@
 {
   "fonte": "docs/asyncapi.yaml",
-  "versao": "2.4.0",
+  "versao": "2.8.0",
   "casos": [
     {
       "operacao": "register",

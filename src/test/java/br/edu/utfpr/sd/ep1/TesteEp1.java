@@ -153,7 +153,7 @@ public final class TesteEp1 {
         boolean falhou = false;
         try {
             repositorio().transacionar(banco -> {
-                Banco.Usuario original = banco.usuarios.get(0);
+                Banco.Usuario original = banco.usuarios.stream().filter(u -> u.user.equals("rollback")).findFirst().orElseThrow();
                 Banco.Usuario duplicado = Protocolo.GSON.fromJson(Protocolo.GSON.toJson(original), Banco.Usuario.class);
                 original.user = "alterado";
                 duplicado.id = UUID.randomUUID().toString();
@@ -164,7 +164,7 @@ public final class TesteEp1 {
             });
         } catch (IOException e) { falhou = true; }
         Banco depois = repositorio().carregar();
-        conferir(falhou && depois.usuarios.size() == 1 && depois.usuarios.get(0).user.equals("rollback"),
+        conferir(falhou && depois.usuarios.size() == 2 && depois.usuarios.stream().anyMatch(u -> u.user.equals("rollback")),
                 "Rollback deve desfazer todas as alteracoes da transacao");
         String token = Protocolo.string(executar(service, req("login", "email", "rollback@email.com", "password", "senha123"), "200"), "token");
         falhou = false;
@@ -172,7 +172,7 @@ public final class TesteEp1 {
             repositorio().transacionar(banco -> {
                 Banco.Sessao sessao = new Banco.Sessao();
                 sessao.token = "b".repeat(64);
-                sessao.usuarioId = banco.usuarios.get(0).id;
+                sessao.usuarioId = banco.usuarios.stream().filter(u -> u.user.equals("rollback")).findFirst().orElseThrow().id;
                 sessao.ultimoUso = System.currentTimeMillis();
                 banco.sessoes.add(sessao);
                 return new JsonObject();

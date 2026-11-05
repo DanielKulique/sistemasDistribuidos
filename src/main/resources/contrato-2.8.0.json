@@ -1,0 +1,2860 @@
+{
+  "version": "2.8.0",
+  "sha256": "57964822b0858b3dc8c0222a358f6d884f3ca98ef363ae2353c8f7f797186a94",
+  "schemas": {
+    "op": {
+      "type": "string",
+      "pattern": "^[a-z_]{3,30}$",
+      "description": "Operação. Na resposta: op da requisição + \"_response\"; \"error\" em falha de parse.",
+      "examples": [
+        "login",
+        "login_response"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "pattern": "^[0-9]{3}$",
+      "description": "Código numérico da resposta, como string.",
+      "examples": [
+        "200"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": "Texto em português, sem acentos e sem emojis, exatamente como definido em cada operação.",
+      "examples": [
+        "Login realizado com sucesso"
+      ]
+    },
+    "token": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Gerado no login (64 hex minúsculos), invalidado no logout. Obrigatório em toda requisição, exceto register e login.",
+      "examples": [
+        "c0fc3c713f09a43384ac08f7d91fca430dcbc6466fff9284ce4571bdc2c8f9f9"
+      ]
+    },
+    "user": {
+      "type": "string",
+      "pattern": "^[a-z]{1,30}$",
+      "description": "Nome de usuário: só letras minúsculas; sem números, espaços, acentos, especiais ou emojis. Único no sistema.",
+      "examples": [
+        "joao"
+      ]
+    },
+    "password": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]{1,20}$",
+      "description": "Somente letras e números. Nunca aparece em resposta.",
+      "examples": [
+        "senha123"
+      ]
+    },
+    "email": {
+      "type": "string",
+      "pattern": "^[a-z0-9._-]+@[a-z0-9-]+(\\.[a-z0-9-]+)*\\.[a-z]{2,}$",
+      "description": "Único no sistema. Aceita domínios com vários níveis e hífen (.com.br, .edu.br, alunos.utfpr.edu.br) e \"_\" ou \"-\" antes do @ (v2.1). Definido no register e não pode ser alterado depois (RNF 5.c).",
+      "examples": [
+        "joao.silva@email.com",
+        "maria.souza@alunos.utfpr.edu.br"
+      ]
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin"
+      ],
+      "description": "Todo register nasce \"user\". Somente admin altera role."
+    },
+    "target_user": {
+      "type": "string",
+      "pattern": "^[a-z]{1,30}$",
+      "description": "Usuário ALVO de uma operação admin_*. Nunca identifica o autor da requisição.",
+      "examples": [
+        "maria"
+      ]
+    },
+    "room_id": {
+      "type": "string",
+      "pattern": "^[0-9]{1,10}$",
+      "description": "Gerado pelo servidor no create_room. Imutável.",
+      "examples": [
+        "1"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9 -]{1,30}$",
+      "description": "Nome da sala, único, sem acentos.",
+      "examples": [
+        "Sala de Estudo B12"
+      ]
+    },
+    "capacity": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,3}$",
+      "description": "Número de lugares, como string. Limita participants das reservas.",
+      "examples": [
+        "12"
+      ]
+    },
+    "location": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9 ,.-]{1,60}$",
+      "description": "Localização física da sala.",
+      "examples": [
+        "Bloco B - 1 andar"
+      ]
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de recursos da sala. Array vazio quando não houver.",
+      "examples": [
+        [
+          "projetor",
+          "tv"
+        ]
+      ]
+    },
+    "room_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "description": "\"active\" = livre para reservas; \"inactive\" = indisponível (manutenção, limpeza), não aceita novas reservas. Nome distinto de status para não colidir com o código da resposta."
+    },
+    "reservation_id": {
+      "type": "string",
+      "pattern": "^[0-9]{1,10}$",
+      "description": "Gerado pelo servidor no create_reservation. Imutável.",
+      "examples": [
+        "27"
+      ]
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Formato ISO AAAA-MM-DD. Não se reserva data passada (400).",
+      "examples": [
+        "2026-09-15"
+      ]
+    },
+    "start_time": {
+      "type": "string",
+      "enum": [
+        "07:30",
+        "08:20",
+        "09:10",
+        "10:20",
+        "11:10",
+        "12:00",
+        "13:00",
+        "13:50",
+        "14:40",
+        "15:50",
+        "16:40",
+        "17:30",
+        "18:40",
+        "19:30",
+        "20:20",
+        "21:20",
+        "22:10"
+      ],
+      "description": "Início de um horário de aula da UTFPR (seção 8), hora local do servidor (America/Sao_Paulo).",
+      "examples": [
+        "13:00"
+      ]
+    },
+    "end_time": {
+      "type": "string",
+      "enum": [
+        "08:20",
+        "09:10",
+        "10:00",
+        "11:10",
+        "12:00",
+        "12:50",
+        "13:50",
+        "14:40",
+        "15:30",
+        "16:40",
+        "17:30",
+        "18:20",
+        "19:30",
+        "20:20",
+        "21:10",
+        "22:10",
+        "23:00"
+      ],
+      "description": "Fim de um horário de aula da UTFPR (seção 8). Deve ser depois do start_time, no mesmo dia (400 caso contrário).",
+      "examples": [
+        "14:40"
+      ]
+    },
+    "slot": {
+      "type": "string",
+      "pattern": "^[2-7](M[1-6]|T[1-6]|N[1-5])$",
+      "description": "Horário no código da UTFPR, dia + turno + aula: `2M1` = segunda, manhã, primeiro horário. Dia de 2 (segunda) a 7 (sábado); turno M, T ou N; aula de 1 a 6 (M, T) ou de 1 a 5 (N). Seção 8.",
+      "examples": [
+        "2M1"
+      ],
+      "x-dias": {
+        "2": "segunda",
+        "3": "terça",
+        "4": "quarta",
+        "5": "quinta",
+        "6": "sexta",
+        "7": "sábado"
+      },
+      "x-horarios": {
+        "M1": [
+          "07:30",
+          "08:20"
+        ],
+        "M2": [
+          "08:20",
+          "09:10"
+        ],
+        "M3": [
+          "09:10",
+          "10:00"
+        ],
+        "M4": [
+          "10:20",
+          "11:10"
+        ],
+        "M5": [
+          "11:10",
+          "12:00"
+        ],
+        "M6": [
+          "12:00",
+          "12:50"
+        ],
+        "T1": [
+          "13:00",
+          "13:50"
+        ],
+        "T2": [
+          "13:50",
+          "14:40"
+        ],
+        "T3": [
+          "14:40",
+          "15:30"
+        ],
+        "T4": [
+          "15:50",
+          "16:40"
+        ],
+        "T5": [
+          "16:40",
+          "17:30"
+        ],
+        "T6": [
+          "17:30",
+          "18:20"
+        ],
+        "N1": [
+          "18:40",
+          "19:30"
+        ],
+        "N2": [
+          "19:30",
+          "20:20"
+        ],
+        "N3": [
+          "20:20",
+          "21:10"
+        ],
+        "N4": [
+          "21:20",
+          "22:10"
+        ],
+        "N5": [
+          "22:10",
+          "23:00"
+        ]
+      }
+    },
+    "slots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/slot"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Horários em que a sala funciona, no código da UTFPR (seção 8).",
+      "examples": [
+        [
+          "2M1",
+          "2M2",
+          "2M3",
+          "3T1",
+          "3T2",
+          "3T3",
+          "5N1",
+          "5N2"
+        ]
+      ]
+    },
+    "lista_vazia": {
+      "title": "[] (não alterar)",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 0,
+      "description": "Em update_room, slots vazio mantém os horários atuais."
+    },
+    "topic": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9 ,.-]{1,60}$",
+      "description": "Assunto da reserva, sem acentos.",
+      "examples": [
+        "Reuniao de projeto"
+      ]
+    },
+    "participants": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,3}$",
+      "description": "Não pode exceder a capacity da sala (400).",
+      "examples": [
+        "6"
+      ]
+    },
+    "available": {
+      "type": "string",
+      "enum": [
+        "true",
+        "false"
+      ],
+      "description": "Booleano como string. Informativo, não reserva a sala."
+    },
+    "count": {
+      "type": "string",
+      "pattern": "^[0-9]{1,10}$",
+      "description": "Quantidade de itens no array devolvido.",
+      "examples": [
+        "3"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2} ([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$",
+      "description": "Data e hora local do servidor.",
+      "examples": [
+        "2026-09-09 14:32:10"
+      ]
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "mine",
+        "all"
+      ],
+      "default": "mine",
+      "description": "\"mine\" (padrão) ou \"all\" (só admin). ⚠ Não consta no Dicionário da planilha."
+    },
+    "min_capacity": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,3}$",
+      "description": "Filtro de capacidade mínima. ⚠ Não consta no Dicionário; assumido o formato de capacity.",
+      "examples": [
+        "6"
+      ]
+    },
+    "nao_alterar": {
+      "title": "\"\" (não alterar)",
+      "type": "string",
+      "const": "",
+      "description": "Em requisições de atualização, string vazia mantém o valor atual (regra 2.11)."
+    },
+    "Usuario": {
+      "title": "Usuário",
+      "type": "object",
+      "description": "Item de `users` (admin_list_users). Nunca contém senha.",
+      "required": [
+        "user",
+        "email",
+        "role"
+      ],
+      "properties": {
+        "user": {
+          "$ref": "#/components/schemas/user"
+        },
+        "email": {
+          "$ref": "#/components/schemas/email"
+        },
+        "role": {
+          "$ref": "#/components/schemas/role"
+        }
+      }
+    },
+    "Sala": {
+      "title": "Sala",
+      "type": "object",
+      "description": "Item de `rooms` (list_rooms). `available` só aparece quando date, start_time e end_time são enviados.",
+      "required": [
+        "room_id",
+        "name",
+        "capacity",
+        "location",
+        "resources",
+        "room_status",
+        "slots"
+      ],
+      "properties": {
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        },
+        "name": {
+          "$ref": "#/components/schemas/name"
+        },
+        "capacity": {
+          "$ref": "#/components/schemas/capacity"
+        },
+        "location": {
+          "$ref": "#/components/schemas/location"
+        },
+        "resources": {
+          "$ref": "#/components/schemas/resources"
+        },
+        "room_status": {
+          "$ref": "#/components/schemas/room_status"
+        },
+        "slots": {
+          "$ref": "#/components/schemas/slots"
+        },
+        "available": {
+          "$ref": "#/components/schemas/available"
+        }
+      }
+    },
+    "Horario": {
+      "title": "Horário da agenda",
+      "type": "object",
+      "description": "Item de `agenda` (read_room com date). Horário reservado traz `user` (quem reservou); `reservation_id` só aparece para o admin e para o dono da reserva.",
+      "required": [
+        "slot",
+        "start_time",
+        "end_time",
+        "slot_status"
+      ],
+      "properties": {
+        "slot": {
+          "$ref": "#/components/schemas/slot"
+        },
+        "start_time": {
+          "$ref": "#/components/schemas/start_time"
+        },
+        "end_time": {
+          "$ref": "#/components/schemas/end_time"
+        },
+        "slot_status": {
+          "type": "string",
+          "enum": [
+            "livre",
+            "indisponivel"
+          ],
+          "description": "\"indisponivel\" quando o horário está reservado ou a sala está inactive."
+        },
+        "user": {
+          "$ref": "#/components/schemas/user"
+        },
+        "reservation_id": {
+          "$ref": "#/components/schemas/reservation_id"
+        }
+      }
+    },
+    "Reserva": {
+      "title": "Reserva",
+      "type": "object",
+      "description": "Item de `reservations` (list_reservations). `name` é o nome da sala; `user` é o dono.",
+      "required": [
+        "reservation_id",
+        "room_id",
+        "name",
+        "user",
+        "date",
+        "start_time",
+        "end_time",
+        "topic",
+        "participants"
+      ],
+      "properties": {
+        "reservation_id": {
+          "$ref": "#/components/schemas/reservation_id"
+        },
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        },
+        "name": {
+          "$ref": "#/components/schemas/name"
+        },
+        "user": {
+          "$ref": "#/components/schemas/user"
+        },
+        "date": {
+          "$ref": "#/components/schemas/date"
+        },
+        "start_time": {
+          "$ref": "#/components/schemas/start_time"
+        },
+        "end_time": {
+          "$ref": "#/components/schemas/end_time"
+        },
+        "topic": {
+          "$ref": "#/components/schemas/topic"
+        },
+        "participants": {
+          "$ref": "#/components/schemas/participants"
+        }
+      }
+    },
+    "E400_cadastro": {
+      "title": "400 · Dados de cadastro em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Dados de cadastro em formato invalido"
+        }
+      }
+    },
+    "E400_credenciais": {
+      "title": "400 · Email ou senha em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Email ou senha em formato invalido"
+        }
+      }
+    },
+    "E400_token": {
+      "title": "400 · Token em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Token em formato invalido"
+        }
+      }
+    },
+    "E400_dados": {
+      "title": "400 · Dados em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Dados em formato invalido"
+        }
+      }
+    },
+    "E400_senha": {
+      "title": "400 · Senha em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Senha em formato invalido"
+        }
+      }
+    },
+    "E400_sala": {
+      "title": "400 · Dados da sala em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Dados da sala em formato invalido"
+        }
+      }
+    },
+    "E400_nada_para_atualizar": {
+      "title": "400 · Nenhum dado para atualizar",
+      "type": "object",
+      "description": "Atualização de usuário com todos os campos vazios (\"\"), sem nada para mudar (v2.4).",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Nenhum dado para atualizar"
+        }
+      }
+    },
+    "E400_reserva": {
+      "title": "400 · Dados da reserva em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Dados da reserva em formato invalido"
+        }
+      }
+    },
+    "E400_filtros": {
+      "title": "400 · Filtros em formato invalido",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "400"
+        },
+        "message": {
+          "const": "Filtros em formato invalido"
+        }
+      }
+    },
+    "E401_credenciais": {
+      "title": "401 · Email ou senha incorretos",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "401"
+        },
+        "message": {
+          "const": "Email ou senha incorretos"
+        }
+      }
+    },
+    "E401_token": {
+      "title": "401 · Token invalido ou expirado",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "401"
+        },
+        "message": {
+          "const": "Token invalido ou expirado"
+        }
+      }
+    },
+    "E403_permissao": {
+      "title": "403 · Permissao insuficiente",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "403"
+        },
+        "message": {
+          "const": "Permissao insuficiente"
+        }
+      }
+    },
+    "E403_senha_incorreta": {
+      "title": "403 · Senha incorreta",
+      "type": "object",
+      "description": "Senha de confirmação errada com token válido. Nada é alterado e a sessão continua ativa (v2.1).",
+      "properties": {
+        "status": {
+          "const": "403"
+        },
+        "message": {
+          "const": "Senha incorreta"
+        }
+      }
+    },
+    "E403_ultimo_admin": {
+      "title": "403 · Nao e possivel remover o ultimo administrador",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "403"
+        },
+        "message": {
+          "const": "Nao e possivel remover o ultimo administrador"
+        }
+      }
+    },
+    "E404_usuario": {
+      "title": "404 · Usuario nao encontrado",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "404"
+        },
+        "message": {
+          "const": "Usuario nao encontrado"
+        }
+      }
+    },
+    "E404_sala": {
+      "title": "404 · Sala nao encontrada",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "404"
+        },
+        "message": {
+          "const": "Sala nao encontrada"
+        }
+      }
+    },
+    "E404_reserva": {
+      "title": "404 · Reserva nao encontrada",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "404"
+        },
+        "message": {
+          "const": "Reserva nao encontrada"
+        }
+      }
+    },
+    "E409_cadastrado": {
+      "title": "409 · Usuario ou email ja cadastrado",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Usuario ou email ja cadastrado"
+        }
+      }
+    },
+    "E409_sessao_ativa": {
+      "title": "409 · Usuario ja possui sessao ativa",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Usuario ja possui sessao ativa"
+        }
+      }
+    },
+    "E409_usuario_em_uso": {
+      "title": "409 · Usuario ja esta em uso",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Usuario ja esta em uso"
+        }
+      }
+    },
+    "E409_sala_cadastrada": {
+      "title": "409 · Sala ja cadastrada",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Sala ja cadastrada"
+        }
+      }
+    },
+    "E409_reservas_ativas": {
+      "title": "409 · Sala possui reservas ativas",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Sala possui reservas ativas"
+        }
+      }
+    },
+    "E409_fora_funcionamento": {
+      "title": "409 · Horario fora do funcionamento da sala",
+      "type": "object",
+      "description": "Aula ocupada que, no dia da semana do date, não está nos slots da sala (regra 8.4).",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Horario fora do funcionamento da sala"
+        }
+      }
+    },
+    "E409_periodo": {
+      "title": "409 · Sala ja reservada no periodo solicitado",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Sala ja reservada no periodo solicitado"
+        }
+      }
+    },
+    "E409_sala_indisponivel": {
+      "title": "409 · Sala indisponivel para reserva",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Sala indisponivel para reserva"
+        }
+      }
+    },
+    "E409_encerrada": {
+      "title": "409 · Reserva ja encerrada",
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "409"
+        },
+        "message": {
+          "const": "Reserva ja encerrada"
+        }
+      }
+    },
+    "E500": {
+      "title": "500 · Erro interno do servidor",
+      "type": "object",
+      "description": "Qualquer operação pode responder 500.",
+      "properties": {
+        "status": {
+          "const": "500"
+        },
+        "message": {
+          "const": "Erro interno do servidor"
+        }
+      }
+    }
+  },
+  "messages": {
+    "register": {
+      "type": "object",
+      "required": [
+        "op",
+        "email",
+        "user",
+        "password"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "register"
+        },
+        "email": {
+          "$ref": "#/components/schemas/email"
+        },
+        "user": {
+          "$ref": "#/components/schemas/user"
+        },
+        "password": {
+          "$ref": "#/components/schemas/password"
+        }
+      }
+    },
+    "register_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "register_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "201 · Usuario cadastrado com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "201"
+            },
+            "message": {
+              "const": "Usuario cadastrado com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_cadastro"
+        },
+        {
+          "$ref": "#/components/schemas/E409_cadastrado"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "login": {
+      "type": "object",
+      "required": [
+        "op",
+        "email",
+        "password"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "login"
+        },
+        "email": {
+          "$ref": "#/components/schemas/email"
+        },
+        "password": {
+          "$ref": "#/components/schemas/password"
+        }
+      }
+    },
+    "login_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "login_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Login realizado com sucesso",
+          "type": "object",
+          "required": [
+            "token",
+            "role"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Login realizado com sucesso"
+            },
+            "token": {
+              "$ref": "#/components/schemas/token"
+            },
+            "role": {
+              "$ref": "#/components/schemas/role"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_credenciais"
+        },
+        {
+          "$ref": "#/components/schemas/E401_credenciais"
+        },
+        {
+          "$ref": "#/components/schemas/E409_sessao_ativa"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "logout": {
+      "type": "object",
+      "required": [
+        "op",
+        "token"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "logout"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        }
+      }
+    },
+    "logout_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "logout_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Logout realizado com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Logout realizado com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_token"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "read_user": {
+      "type": "object",
+      "required": [
+        "op",
+        "token"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "read_user"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        }
+      }
+    },
+    "read_user_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "read_user_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "user",
+            "email",
+            "role",
+            "created_at"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "user": {
+              "$ref": "#/components/schemas/user"
+            },
+            "email": {
+              "$ref": "#/components/schemas/email"
+            },
+            "role": {
+              "$ref": "#/components/schemas/role"
+            },
+            "created_at": {
+              "$ref": "#/components/schemas/created_at"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_token"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "update_user": {
+      "type": "object",
+      "description": "Campo \"\" = não alterar, mas pelo menos um precisa mudar (regra 2.13). A chave `email` é proibida (RNF 5.c) e resulta em 400.",
+      "required": [
+        "op",
+        "token",
+        "user",
+        "password"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "update_user"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "user": {
+          "description": "Novo nome de usuário, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/user"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "password": {
+          "description": "Nova senha, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/password"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "description": "A chave `email` não pode ser enviada: o e-mail não muda depois do cadastro (RNF 5.c).",
+            "required": [
+              "email"
+            ]
+          }
+        },
+        {
+          "not": {
+            "description": "`user` e `password` vazios ao mesmo tempo: não há nada para atualizar (regra 2.13).",
+            "x-message": "Nenhum dado para atualizar",
+            "required": [
+              "user",
+              "password"
+            ],
+            "properties": {
+              "user": {
+                "const": ""
+              },
+              "password": {
+                "const": ""
+              }
+            }
+          }
+        }
+      ]
+    },
+    "update_user_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "update_user_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Dados atualizados com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Dados atualizados com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E400_nada_para_atualizar"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E409_usuario_em_uso"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "delete_user": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "password"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "delete_user"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "password": {
+          "$ref": "#/components/schemas/password"
+        }
+      }
+    },
+    "delete_user_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "delete_user_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Usuario removido com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Usuario removido com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_senha"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_senha_incorreta"
+        },
+        {
+          "$ref": "#/components/schemas/E403_ultimo_admin"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "admin_list_users": {
+      "type": "object",
+      "required": [
+        "op",
+        "token"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_list_users"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        }
+      }
+    },
+    "admin_list_users_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_list_users_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "count",
+            "users"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "count": {
+              "$ref": "#/components/schemas/count"
+            },
+            "users": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Usuario"
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_token"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "admin_read_user": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "target_user"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_read_user"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "target_user": {
+          "$ref": "#/components/schemas/target_user"
+        }
+      }
+    },
+    "admin_read_user_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_read_user_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "user",
+            "email",
+            "role",
+            "created_at"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "user": {
+              "$ref": "#/components/schemas/user"
+            },
+            "email": {
+              "$ref": "#/components/schemas/email"
+            },
+            "role": {
+              "$ref": "#/components/schemas/role"
+            },
+            "created_at": {
+              "$ref": "#/components/schemas/created_at"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E404_usuario"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "admin_update_user": {
+      "type": "object",
+      "description": "Campo \"\" = não alterar, mas pelo menos um precisa mudar (regra 2.13). A chave `email` é proibida e resulta em 400.",
+      "required": [
+        "op",
+        "token",
+        "target_user",
+        "user",
+        "password",
+        "role"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_update_user"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "target_user": {
+          "$ref": "#/components/schemas/target_user"
+        },
+        "user": {
+          "description": "Novo nome do usuário alvo, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/user"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "password": {
+          "description": "Nova senha do usuário alvo, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/password"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "role": {
+          "description": "Novo perfil do usuário alvo, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/role"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "description": "A chave `email` não pode ser enviada: o e-mail não muda depois do cadastro (RNF 5.c).",
+            "required": [
+              "email"
+            ]
+          }
+        },
+        {
+          "not": {
+            "description": "`user`, `password` e `role` vazios ao mesmo tempo: não há nada para atualizar (regra 2.13).",
+            "x-message": "Nenhum dado para atualizar",
+            "required": [
+              "user",
+              "password",
+              "role"
+            ],
+            "properties": {
+              "user": {
+                "const": ""
+              },
+              "password": {
+                "const": ""
+              },
+              "role": {
+                "const": ""
+              }
+            }
+          }
+        }
+      ]
+    },
+    "admin_update_user_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_update_user_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Dados atualizados com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Dados atualizados com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E400_nada_para_atualizar"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E403_ultimo_admin"
+        },
+        {
+          "$ref": "#/components/schemas/E404_usuario"
+        },
+        {
+          "$ref": "#/components/schemas/E409_usuario_em_uso"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "admin_delete_user": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "target_user"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_delete_user"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "target_user": {
+          "$ref": "#/components/schemas/target_user"
+        }
+      }
+    },
+    "admin_delete_user_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "admin_delete_user_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Usuario removido com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Usuario removido com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E403_ultimo_admin"
+        },
+        {
+          "$ref": "#/components/schemas/E404_usuario"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "create_room": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "name",
+        "capacity",
+        "location",
+        "resources",
+        "slots"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "create_room"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "name": {
+          "$ref": "#/components/schemas/name"
+        },
+        "capacity": {
+          "$ref": "#/components/schemas/capacity"
+        },
+        "location": {
+          "$ref": "#/components/schemas/location"
+        },
+        "resources": {
+          "$ref": "#/components/schemas/resources"
+        },
+        "slots": {
+          "$ref": "#/components/schemas/slots"
+        }
+      }
+    },
+    "create_room_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "create_room_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "201 · Sala cadastrada com sucesso",
+          "type": "object",
+          "required": [
+            "room_id"
+          ],
+          "properties": {
+            "status": {
+              "const": "201"
+            },
+            "message": {
+              "const": "Sala cadastrada com sucesso"
+            },
+            "room_id": {
+              "$ref": "#/components/schemas/room_id"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_sala"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E409_sala_cadastrada"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "list_rooms": {
+      "type": "object",
+      "description": "Filtros opcionais. date, start_time e end_time vêm juntos ou nenhum deles (parte do trio → 400).",
+      "required": [
+        "op",
+        "token"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "list_rooms"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "date": {
+          "$ref": "#/components/schemas/date"
+        },
+        "start_time": {
+          "$ref": "#/components/schemas/start_time"
+        },
+        "end_time": {
+          "$ref": "#/components/schemas/end_time"
+        },
+        "min_capacity": {
+          "$ref": "#/components/schemas/min_capacity"
+        }
+      },
+      "dependencies": {
+        "date": [
+          "start_time",
+          "end_time"
+        ],
+        "start_time": [
+          "date",
+          "end_time"
+        ],
+        "end_time": [
+          "date",
+          "start_time"
+        ]
+      }
+    },
+    "list_rooms_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "list_rooms_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "count",
+            "rooms"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "count": {
+              "$ref": "#/components/schemas/count"
+            },
+            "rooms": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Sala"
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_filtros"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "read_room": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "room_id"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "read_room"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        },
+        "date": {
+          "description": "Opcional. Com date, a resposta traz a agenda da sala nesse dia (regra 8.5).",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/date"
+            }
+          ]
+        }
+      }
+    },
+    "read_room_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "read_room_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "room_id",
+            "name",
+            "capacity",
+            "location",
+            "resources",
+            "room_status",
+            "slots"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "room_id": {
+              "$ref": "#/components/schemas/room_id"
+            },
+            "name": {
+              "$ref": "#/components/schemas/name"
+            },
+            "capacity": {
+              "$ref": "#/components/schemas/capacity"
+            },
+            "location": {
+              "$ref": "#/components/schemas/location"
+            },
+            "resources": {
+              "$ref": "#/components/schemas/resources"
+            },
+            "room_status": {
+              "$ref": "#/components/schemas/room_status"
+            },
+            "slots": {
+              "$ref": "#/components/schemas/slots"
+            },
+            "date": {
+              "$ref": "#/components/schemas/date"
+            },
+            "agenda": {
+              "type": "array",
+              "description": "Só quando a requisição traz date. Um item por horário da sala, na ordem da tabela.",
+              "items": {
+                "$ref": "#/components/schemas/Horario"
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E404_sala"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "update_room": {
+      "type": "object",
+      "description": "Campo \"\" = não alterar. `resources` é enviado como lista completa.",
+      "required": [
+        "op",
+        "token",
+        "room_id",
+        "name",
+        "capacity",
+        "location",
+        "resources",
+        "room_status"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "update_room"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        },
+        "name": {
+          "description": "Novo nome, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/name"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "capacity": {
+          "description": "Nova capacidade, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/capacity"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "location": {
+          "description": "Nova localização, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/location"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "resources": {
+          "$ref": "#/components/schemas/resources"
+        },
+        "room_status": {
+          "description": "Novo estado, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/room_status"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "slots": {
+          "description": "Novos horários de funcionamento, no código da UTFPR; ausente ou [] para manter (regra 8.7).",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/slots"
+            },
+            {
+              "$ref": "#/components/schemas/lista_vazia"
+            }
+          ]
+        }
+      }
+    },
+    "update_room_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "update_room_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Sala atualizada com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Sala atualizada com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_sala"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E404_sala"
+        },
+        {
+          "$ref": "#/components/schemas/E409_sala_cadastrada"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "delete_room": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "room_id"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "delete_room"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        }
+      }
+    },
+    "delete_room_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "delete_room_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Sala removida com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Sala removida com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E404_sala"
+        },
+        {
+          "$ref": "#/components/schemas/E409_reservas_ativas"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "check_availability": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "room_id",
+        "date",
+        "start_time",
+        "end_time"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "check_availability"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        },
+        "date": {
+          "$ref": "#/components/schemas/date"
+        },
+        "start_time": {
+          "$ref": "#/components/schemas/start_time"
+        },
+        "end_time": {
+          "$ref": "#/components/schemas/end_time"
+        }
+      }
+    },
+    "check_availability_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "check_availability_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "room_id",
+            "date",
+            "start_time",
+            "end_time",
+            "available"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "room_id": {
+              "$ref": "#/components/schemas/room_id"
+            },
+            "date": {
+              "$ref": "#/components/schemas/date"
+            },
+            "start_time": {
+              "$ref": "#/components/schemas/start_time"
+            },
+            "end_time": {
+              "$ref": "#/components/schemas/end_time"
+            },
+            "available": {
+              "$ref": "#/components/schemas/available"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E404_sala"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "create_reservation": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "room_id",
+        "date",
+        "start_time",
+        "end_time",
+        "topic",
+        "participants"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "create_reservation"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        },
+        "date": {
+          "$ref": "#/components/schemas/date"
+        },
+        "start_time": {
+          "$ref": "#/components/schemas/start_time"
+        },
+        "end_time": {
+          "$ref": "#/components/schemas/end_time"
+        },
+        "topic": {
+          "$ref": "#/components/schemas/topic"
+        },
+        "participants": {
+          "$ref": "#/components/schemas/participants"
+        }
+      }
+    },
+    "create_reservation_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "create_reservation_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "201 · Reserva realizada com sucesso",
+          "type": "object",
+          "required": [
+            "reservation_id"
+          ],
+          "properties": {
+            "status": {
+              "const": "201"
+            },
+            "message": {
+              "const": "Reserva realizada com sucesso"
+            },
+            "reservation_id": {
+              "$ref": "#/components/schemas/reservation_id"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_reserva"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E404_sala"
+        },
+        {
+          "$ref": "#/components/schemas/E409_periodo"
+        },
+        {
+          "$ref": "#/components/schemas/E409_sala_indisponivel"
+        },
+        {
+          "$ref": "#/components/schemas/E409_fora_funcionamento"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "list_reservations": {
+      "type": "object",
+      "description": "scope, date e room_id são opcionais; sem scope vale \"mine\".",
+      "required": [
+        "op",
+        "token"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "list_reservations"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "scope": {
+          "$ref": "#/components/schemas/scope"
+        },
+        "date": {
+          "$ref": "#/components/schemas/date"
+        },
+        "room_id": {
+          "$ref": "#/components/schemas/room_id"
+        }
+      }
+    },
+    "list_reservations_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "list_reservations_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "count",
+            "reservations"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "count": {
+              "$ref": "#/components/schemas/count"
+            },
+            "reservations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Reserva"
+              }
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_filtros"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "read_reservation": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "reservation_id"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "read_reservation"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "reservation_id": {
+          "$ref": "#/components/schemas/reservation_id"
+        }
+      }
+    },
+    "read_reservation_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "read_reservation_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Consulta realizada com sucesso",
+          "type": "object",
+          "required": [
+            "reservation_id",
+            "room_id",
+            "name",
+            "user",
+            "date",
+            "start_time",
+            "end_time",
+            "topic",
+            "participants",
+            "created_at"
+          ],
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Consulta realizada com sucesso"
+            },
+            "reservation_id": {
+              "$ref": "#/components/schemas/reservation_id"
+            },
+            "room_id": {
+              "$ref": "#/components/schemas/room_id"
+            },
+            "name": {
+              "$ref": "#/components/schemas/name"
+            },
+            "user": {
+              "$ref": "#/components/schemas/user"
+            },
+            "date": {
+              "$ref": "#/components/schemas/date"
+            },
+            "start_time": {
+              "$ref": "#/components/schemas/start_time"
+            },
+            "end_time": {
+              "$ref": "#/components/schemas/end_time"
+            },
+            "topic": {
+              "$ref": "#/components/schemas/topic"
+            },
+            "participants": {
+              "$ref": "#/components/schemas/participants"
+            },
+            "created_at": {
+              "$ref": "#/components/schemas/created_at"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E404_reserva"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "update_reservation": {
+      "type": "object",
+      "description": "Campo \"\" = não alterar. room_id e date não podem ser alterados.",
+      "required": [
+        "op",
+        "token",
+        "reservation_id",
+        "start_time",
+        "end_time",
+        "topic",
+        "participants"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "update_reservation"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "reservation_id": {
+          "$ref": "#/components/schemas/reservation_id"
+        },
+        "start_time": {
+          "description": "Novo início, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/start_time"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "end_time": {
+          "description": "Novo fim, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/end_time"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "topic": {
+          "description": "Novo assunto, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/topic"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        },
+        "participants": {
+          "description": "Novo número de participantes, ou \"\" para manter.",
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/participants"
+            },
+            {
+              "$ref": "#/components/schemas/nao_alterar"
+            }
+          ]
+        }
+      }
+    },
+    "update_reservation_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "update_reservation_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Reserva atualizada com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Reserva atualizada com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_reserva"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E404_reserva"
+        },
+        {
+          "$ref": "#/components/schemas/E409_periodo"
+        },
+        {
+          "$ref": "#/components/schemas/E409_encerrada"
+        },
+        {
+          "$ref": "#/components/schemas/E409_fora_funcionamento"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "delete_reservation": {
+      "type": "object",
+      "required": [
+        "op",
+        "token",
+        "reservation_id"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "delete_reservation"
+        },
+        "token": {
+          "$ref": "#/components/schemas/token"
+        },
+        "reservation_id": {
+          "$ref": "#/components/schemas/reservation_id"
+        }
+      }
+    },
+    "delete_reservation_response": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "delete_reservation_response"
+        },
+        "status": {
+          "$ref": "#/components/schemas/status"
+        },
+        "message": {
+          "$ref": "#/components/schemas/message"
+        }
+      },
+      "oneOf": [
+        {
+          "title": "200 · Reserva cancelada com sucesso",
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "200"
+            },
+            "message": {
+              "const": "Reserva cancelada com sucesso"
+            }
+          }
+        },
+        {
+          "$ref": "#/components/schemas/E400_dados"
+        },
+        {
+          "$ref": "#/components/schemas/E401_token"
+        },
+        {
+          "$ref": "#/components/schemas/E403_permissao"
+        },
+        {
+          "$ref": "#/components/schemas/E404_reserva"
+        },
+        {
+          "$ref": "#/components/schemas/E409_encerrada"
+        },
+        {
+          "$ref": "#/components/schemas/E500"
+        }
+      ]
+    },
+    "linha_invalida": {
+      "type": "string",
+      "description": "JSON malformado, `op` desconhecida ou linha com mais de 8192 bytes (incluindo o `\\n`)."
+    },
+    "error": {
+      "type": "object",
+      "required": [
+        "op",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "op": {
+          "type": "string",
+          "const": "error"
+        },
+        "status": {
+          "type": "string",
+          "const": "400"
+        },
+        "message": {
+          "type": "string",
+          "enum": [
+            "Requisicao invalida",
+            "Operacao desconhecida",
+            "Mensagem excede o tamanho maximo"
+          ]
+        }
+      }
+    }
+  },
+  "access": {
+    "register": "publico",
+    "login": "publico",
+    "logout": "logado",
+    "read_user": "logado",
+    "update_user": "logado",
+    "delete_user": "logado",
+    "admin_list_users": "admin",
+    "admin_read_user": "admin",
+    "admin_update_user": "admin",
+    "admin_delete_user": "admin",
+    "create_room": "admin",
+    "list_rooms": "logado",
+    "read_room": "logado",
+    "update_room": "admin",
+    "delete_room": "admin",
+    "check_availability": "logado",
+    "create_reservation": "logado",
+    "list_reservations": "logado",
+    "read_reservation": "dono-ou-admin",
+    "update_reservation": "dono",
+    "delete_reservation": "dono-ou-admin",
+    "linha_invalida": "publico"
+  }
+}

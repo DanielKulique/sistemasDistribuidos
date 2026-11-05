@@ -40,9 +40,15 @@ public final class ClienteGui extends JFrame {
     private String destino;
     private String token;
     private boolean ocupado;
+    private String perfil = "user";
+    private final JTabbedPane abas = new JTabbedPane();
+    private PainelOperacoes usuarios;
+    private PainelOperacoes salas;
+    private PainelOperacoes reservas;
 
     public ClienteGui(String[] args) {
-        super("Reserva de salas · EP-1");
+        super("Reserva de salas · EP-2");
+        abas.setName("abas");
         if (args.length == 2) {
             host.setText(args[0]);
             porta.setText(String.valueOf(EntradaConsole.validarPorta(args[1])));
@@ -51,7 +57,7 @@ public final class ClienteGui extends JFrame {
         JPanel raiz = new JPanel(new BorderLayout(16, 16));
         raiz.setBorder(new EmptyBorder(20, 24, 20, 24));
         JPanel topo = new JPanel(new BorderLayout(8, 12));
-        JLabel titulo = new JLabel("Minha conta");
+        JLabel titulo = new JLabel("Reserva de salas");
         titulo.setFont(titulo.getFont().deriveFont(24f));
         topo.add(titulo, BorderLayout.NORTH);
         JPanel conexao = new JPanel(new BorderLayout(12, 0));
@@ -110,7 +116,13 @@ public final class ClienteGui extends JFrame {
         JPanel sair = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         sair.add(botao("Sair da sessão", "logout", () -> enviar(requisicao("logout"), false)));
         conta.add(sair, BorderLayout.SOUTH);
-        paginas.add(conta, "conta");
+        usuarios = new PainelOperacoes("usuarios", req -> enviar(req, false));
+        salas = new PainelOperacoes("salas", req -> enviar(req, false));
+        reservas = new PainelOperacoes("reservas", req -> enviar(req, false));
+        controles.addAll(usuarios.controles()); controles.addAll(salas.controles()); controles.addAll(reservas.controles());
+        abas.addTab("Minha conta", conta); abas.addTab("Usuários — ADM", usuarios);
+        abas.addTab("Salas e agenda", salas); abas.addTab("Reservas", reservas);
+        paginas.add(abas, "conta");
         raiz.add(paginas, BorderLayout.CENTER);
         status.setName("status");
         JPanel rodape = new JPanel(new BorderLayout(8, 8));
@@ -198,6 +210,7 @@ public final class ClienteGui extends JFrame {
 
     private void enviar(JsonObject req, boolean fechar) {
         if (ocupado) return;
+        if (token != null) req.addProperty("token", token);
         final String endereco = host.getText().trim();
         final int numero;
         try {
@@ -246,10 +259,12 @@ public final class ClienteGui extends JFrame {
         status.setText(codigo + " — " + Protocolo.string(res, "message"));
         if (op.equals("login") && codigo.equals("200")) {
             token = Protocolo.string(res, "token");
+            perfil = Protocolo.string(res, "role");
             cadastro.setText("Sessão iniciada. Clique em Consultar cadastro para visualizar seus dados.");
         }
         if (codigo.equals("401") || (codigo.equals("200") && (op.equals("logout") || op.equals("delete_user")))) {
             token = null;
+            perfil = "user";
             cadastro.setText("");
             novoNome.setText("");
             novaSenha.setText("");
@@ -259,6 +274,8 @@ public final class ClienteGui extends JFrame {
             cadastro.setText("Usuário: " + Protocolo.string(res, "user") + "\nE-mail: " + Protocolo.string(res, "email")
                     + "\nPerfil: " + Protocolo.string(res, "role") + "\nCriado em: " + Protocolo.string(res, "created_at"));
         }
+        if (op.equals("read_user") && codigo.equals("200")) perfil = Protocolo.string(res, "role");
+        usuarios.mostrar(req, res); salas.mostrar(req, res); reservas.mostrar(req, res);
         if (op.equals("update_user") && codigo.equals("200")) {
             novoNome.setText("");
             cadastro.setText("Dados atualizados. Consulte novamente para visualizar o cadastro atual.");
@@ -269,7 +286,8 @@ public final class ClienteGui extends JFrame {
         for (JComponent controle : controles) controle.setEnabled(!ocupado);
         host.setEnabled(!ocupado && token == null);
         porta.setEnabled(!ocupado && token == null);
-        sessao.setText(token == null ? "Sem sessão" : "Sessão ativa");
+        sessao.setText(token == null ? "Sem sessão" : "Sessão ativa — " + perfil);
+        if (usuarios != null) abas.setEnabledAt(1, "admin".equals(perfil));
         cards.show(paginas, token == null ? "acesso" : "conta");
     }
 
