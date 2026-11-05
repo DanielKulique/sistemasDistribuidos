@@ -14,10 +14,57 @@ A fonte de verdade é [docs/asyncapi.yaml](docs/asyncapi.yaml), copiada sem adap
 
 **Exceção acordada para a pendência de capacidade:** o contrato exige 409 ao reduzir uma sala abaixo dos participantes de uma reserva futura, mas não define sua mensagem nem inclui a variante no schema de `update_room_response`. A aplicação recusa essa alteração com **409 `Sala possui reservas ativas`**, reutilizando uma mensagem existente, conforme decisão autorizada. O cliente aceita somente essa exceção específica; o YAML permanece intacto.
 
-## Preparar MySQL/XAMPP
+## Windows institucional, sem administrador
 
-1. Inicie **MySQL** no painel do XAMPP. Ele pode fornecer MariaDB; ambos são atendidos pelo driver incluído. Apache só é necessário para usar phpMyAdmin.
-2. Execute **sql/schema.sql** com uma conta administrativa. No phpMyAdmin, use Importar; no Bash, a partir da raiz do projeto: `mysql -u root -p < sql/schema.sql`.
+Copie **todo o projeto**, incluindo `lib/`, para uma pasta em que seu usuário possa escrever. Disponibilize um **JDK 17+** no PATH da sessão. Em uma VM com MySQL/MariaDB já ativo e banco previamente preparado, abra um terminal comum, entre na pasta do projeto e execute:
+
+```bat
+preparar-ep2.cmd
+servidor-ep2.cmd 26000
+```
+
+Em outro terminal:
+
+```bat
+cliente-ep2.cmd 127.0.0.1 26000
+```
+
+Para conectar a outra máquina: `cliente-ep2.cmd 10.20.50.X 26000`, substituindo o endereço pelo IP do servidor. O cliente usa o Swing existente e **não precisa de banco nem configuração MySQL na máquina cliente**. Os launchers continuam mostrando todos os logs `C -> S {...}` / `S -> C {...}`. A porta TCP Java padrão desses launchers é **26000**; os scripts antigos preservam seu comportamento.
+
+Os `.cmd` usam `%~dp0` para localizar o projeto e chamam `powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...`. O bypass vale somente para aquele processo, inclusive a compilação filha. Não há alteração permanente de ExecutionPolicy, pedido de UAC, instalação, gerenciamento de serviços ou encerramento de processos que ocupem portas. Uma política institucional de grupo (`MachinePolicy`/`UserPolicy`) pode ter precedência sobre o parâmetro por processo; nesse caso o erro deve ser encaminhado à instituição, sem tentar contorná-la. [Referência Microsoft](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1).
+
+`preparar-ep2.cmd` verifica Java, o handshake MySQL/MariaDB no host/porta configurados, a configuração local, a compilação e o JDBC. Reutiliza o banco ativo, mesmo que o XAMPP também esteja instalado. Não inicia outro MySQL, Apache ou MongoDB. Se `config/mysql.properties` já existir, seus bytes são preservados, mesmo se uma variável de senha estiver definida. Se faltar, o script copia o exemplo e solicita a senha sem eco; alternativamente lê `EP2_MYSQL_PASSWORD` **somente na criação inicial**. Não há senha de laboratório embutida nem opção com senha fixa. Não digite senhas como argumentos de comandos nem as inclua em capturas de tela.
+
+O arquivo segue o formato simples `host=...`, `port=...`, `database=ep1_reserva_salas`, `user=ep1`, `password=...`. A senha informada pelo script recebe os escapes de Java Properties automaticamente. Se o arquivo existente contiver um marcador de exemplo, edite-o localmente; o script não o substitui. A variável opcional não é propagada aos processos Java filhos. Os arquivos reais `config/*.properties` são ignorados pelo Git.
+
+Diagnóstico ampliado:
+
+```bat
+preparar-ep2.cmd --diagnostico
+```
+
+Mostra versão/caminho do Java, raiz do projeto, endereço/porta do banco, usuário, presença da configuração, driver e classes, processo da porta quando a consulta for permitida, versão real do banco e resultado JDBC. Não imprime a senha nem o conteúdo de `mysql.properties`. O teste opcional de infraestrutura verifica as sete tabelas, suas colunas, InnoDB, a linha de controle e `SELECT/INSERT/UPDATE/DELETE`. Os comandos DML possuem `WHERE 1=0`, afetam zero linhas e são finalizados com rollback; não cadastram usuários/salas/reservas nem reinicializam o admin. A conexão simples continua disponível sem essa opção.
+
+Se o preparo falhar:
+
+| Erro | Providência do usuário comum |
+|---|---|
+| Java ausente/antigo ou `javac` ausente | Disponibilizar um JDK 17+ permitido pela instituição no PATH da sessão. O script não instala Java. |
+| Banco inacessível ou porta com outro protocolo | Conferir host/porta com a equipe da VM. Se o MySQL do XAMPP já estiver ativo, reutilizá-lo. Não iniciar outra instância, matar o processo ou mexer em serviços protegidos. |
+| Autenticação recusada | Conferir `user/password` no arquivo local, sem publicar seu conteúdo. |
+| Banco/tabelas/colunas ausentes, motor diferente de InnoDB ou linha de controle ausente | Solicitar uma única preparação/revisão de `sql/schema.sql` por quem já tem permissão no banco. |
+| Permissões insuficientes | Solicitar `SELECT`, `INSERT`, `UPDATE`, `DELETE` nas tabelas de `ep1_reserva_salas` para a conta da aplicação. Não é necessário root na execução normal. |
+| Porta Java ocupada | Usar outra porta em ambos os launchers; nenhum processo será encerrado. |
+| Driver ausente | Copiar a pasta `lib/` completa junto do projeto. |
+
+O preparo retorna código diferente de zero se faltar algo. Ele não executa `CREATE USER`, `GRANT`, DDL ou limpeza de dados. A criação inicial do admin permanece no Java, ao iniciar o servidor. Repetir o preparo não apaga nem reseta dados. Para apresentar: [roteiro de testes manuais EP-2](docs/TESTES_MANUAIS_EP2.md).
+
+## Preparação inicial do banco (responsável com permissão)
+
+Esta seção é para quem prepara a infraestrutura uma única vez, com uma conta MySQL já autorizada. **Não é uma exigência de privilégios administrativos do Windows para executar a aplicação.** Na VM com banco/tabelas e conta já disponíveis, basta a seção anterior.
+
+1. Confirme que há um MySQL/MariaDB disponível no host/porta. Se ele já responder, reutilize-o. A aplicação não depende de Apache ou phpMyAdmin.
+2. Execute **sql/schema.sql** com uma conta MySQL que já tenha permissão para essa preparação. No Bash, a partir da raiz: `mysql -u CONTA_DE_PREPARACAO -p < sql/schema.sql`. No Windows, `C:\xampp\mysql\bin\mysql.exe` pode ser usado, caso exista; o caminho do projeto continua relativo à sua própria raiz.
 3. Crie uma conta para a aplicação, por exemplo no banco local do XAMPP:
 
 ```sql
@@ -51,14 +98,16 @@ Bash/Linux/Git Bash:
 java -cp 'build/classes:lib/*' br.edu.utfpr.sd.ep1.TesteConexaoMySql
 ```
 
-PowerShell/Windows:
+PowerShell/Windows (bypass restrito ao processo):
 
 ```powershell
-.\build.ps1 -SomenteClasses
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -SomenteClasses
 java -cp 'build/classes;lib/*' br.edu.utfpr.sd.ep1.TesteConexaoMySql
 ```
 
 O diagnóstico deve mostrar conexão válida, versão real, banco `ep1_reserva_salas` selecionado e conexão fechada corretamente. Ele não cria tabelas. Com Ant: `ant test-mysql`. Se aparecer `No suitable driver`, confira `lib/mariadb-java-client-3.5.11.jar` e o classpath. A pasta `lib/` deve acompanhar os JARs.
+
+Para conferir também schema/permissões, sem modificar registros: `java -cp "build/classes;lib/*" br.edu.utfpr.sd.ep1.TesteConexaoMySql config/mysql.properties --verificar-ep2` (no Linux, use `:` no classpath). Os launchers fazem essa checagem automaticamente.
 
 ## Iniciar servidor e cliente
 
@@ -69,7 +118,7 @@ Em dois terminais na raiz:
 ./cliente.sh 127.0.0.1 5000
 ```
 
-No Windows: `.\servidor.ps1 5000 config/mysql.properties` e `.\cliente.ps1 127.0.0.1 5000`.
+No Windows, prefira `servidor-ep2.cmd 26000` e `cliente-ep2.cmd 127.0.0.1 26000`. Os scripts `.ps1` anteriores continuam disponíveis; para executá-los sob bloqueio de scripts locais use `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\servidor.ps1 5000 config/mysql.properties` e o equivalente para `cliente.ps1`.
 
 Para o cliente de console: `./cliente.sh --console 127.0.0.1 5000`. Ele preserva as opções da EP-1 e acrescenta os menus Salas, Administração e Reservas.
 
@@ -143,10 +192,10 @@ Prepare um banco **separado**, chamado exatamente `ep1_reserva_salas_teste`, com
 ```bash
 ./build.sh --classes-only
 python3 -c "from pathlib import Path; Path('build/schema-test.sql').write_text(Path('sql/schema.sql').read_text().replace('ep1_reserva_salas','ep1_reserva_salas_teste'))"
-mysql -u root -p < build/schema-test.sql
+mysql -u CONTA_DE_PREPARACAO -p < build/schema-test.sql
 ```
 
-No Windows, use `python` se esse for o nome disponível e importe `build/schema-test.sql` pelo phpMyAdmin. Crie a conta de testes com uma senha local:
+Essa preparação é separada e feita por quem já tem permissão no banco. Os launchers não criam configuração, banco ou conta de testes automaticamente. No Windows, use `python` se esse for o nome disponível e importe `build/schema-test.sql` com um cliente MySQL autorizado. Crie a conta de testes com uma senha local:
 
 ```sql
 CREATE USER 'ep1_teste'@'localhost' IDENTIFIED BY 'ESCOLHA_OUTRA_SENHA_LOCAL';
@@ -164,7 +213,7 @@ Execute **em sequência**, em uma sessão com ambiente gráfico:
 ant test-ep2
 ```
 
-No PowerShell: `.\testar.ps1`. No NetBeans: **Test Project**. Para configuração alternativa, `./testar.sh config/outro-teste.properties` ou `ant -Dmysql.test.config=config/outro-teste.properties test`.
+No PowerShell: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\testar.ps1`. No NetBeans: **Test Project**. Para configuração alternativa, `./testar.sh config/outro-teste.properties` ou `ant -Dmysql.test.config=config/outro-teste.properties test`.
 
 O testador oficial do commit fixado pode ser baixado e executado contra um processo Java temporário no banco de testes:
 
@@ -178,8 +227,8 @@ Resultados e limitações verificados estão em [docs/RELATORIO_EP2.md](docs/REL
 
 ## Demonstração ao professor
 
-1. Inicie o banco, importe `sql/schema.sql`, configure a conta local e execute o diagnóstico JDBC.
-2. Inicie servidor na porta 5000 e cliente apontando para esse endereço.
+1. Na VM com banco já preparado, execute `preparar-ep2.cmd` usando a configuração local. Se faltar schema/permissão, solicite a preparação inicial separada; o launcher não faz provisionamento.
+2. Execute `servidor-ep2.cmd 26000` e `cliente-ep2.cmd 127.0.0.1 26000` em terminais separados.
 3. Entre com `admin@admin.com` / `admin` e liste os usuários.
 4. Cadastre um usuário comum em outro cliente; atualize seu nome pelo ADM e confirme que o token continua válido. Teste promoção e rebaixamento.
 5. Cadastre uma sala com capacidade 6 e marque `2M1`, `2M2` e `2M3` na grade.
@@ -188,3 +237,5 @@ Resultados e limitações verificados estão em [docs/RELATORIO_EP2.md](docs/REL
 8. Atualize capacidade/localização/situação e demonstre que `inactive` bloqueia novas reservas.
 9. Tente excluir a sala com reserva futura e observe 409. Exclua o usuário comum pelo ADM, confirme a remoção da reserva e então exclua a sala.
 10. Mostre os JSONs nos terminais. Reinicie o servidor com o mesmo banco e confira a persistência. Faça logout dos clientes ao terminar.
+
+O [roteiro manual completo](docs/TESTES_MANUAIS_EP2.md) detalha as pré-condições, formulários, JSONs e resultados dos 24 cenários, incluindo validações de espaços, slots, conflitos, visibilidade, persistência e logout.

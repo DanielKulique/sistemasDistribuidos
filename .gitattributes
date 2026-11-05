@@ -1,0 +1,2 @@
+# Normaliza no Git e preserva CRLF nos launchers do Windows.
+*.cmd text eol=crlf

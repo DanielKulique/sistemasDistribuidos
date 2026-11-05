@@ -164,6 +164,7 @@ public final class TesteEp2 {
         String reserva = Protocolo.string(chamar(reserva(alfa, id, data, "07:30", "08:20"), "201"), "reservation_id");
         chamar(reserva(beta, id, data, "07:30", "08:20"), "409");
         chamar(reserva(beta, id, data, "08:20", "09:10"), "201");
+        diagnosticoPreservaBanco();
         chamar(reserva(beta, id, data, "14:00", "16:00"), "400");
         chamar(reserva(beta, id, data, "10:20", "11:10"), "409");
         chamar(req("read_reservation", beta, "reservation_id", reserva), "403");
@@ -203,6 +204,53 @@ public final class TesteEp2 {
         chamar(req("delete_room", admin, "room_id", id), "200"); chamar(req("read_room", admin, "room_id", id), "404");
         chamar(req("admin_delete_user", admin, "target_user", "naoexiste"), "404");
         System.out.println("OK: admin, whitelist, CRUD, UTFPR, agenda, reservas, persistencia, rollback e concorrencia.");
+    }
+
+    private static void diagnosticoPreservaBanco() throws Exception {
+        String antes = Protocolo.GSON.toJson(banco.repositorio.carregar());
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            try (var conexao = banco.config.abrir()) {
+                VerificacaoBancoMySql.conferir(conexao);
+                ok(conexao.getAutoCommit(), "Diagnostico restaura autoCommit");
+            }
+            ok(antes.equals(Protocolo.GSON.toJson(banco.repositorio.carregar())),
+                    "Diagnostico repetido preserva usuarios, sessoes, salas, recursos, slots, reservas e sequencias");
+        }
+        // Falhas de permissao/schema sem precisar de root, GRANT ou DDL nos testes.
+        for (String operacao : List.of("SELECT", "INSERT", "UPDATE", "DELETE")) {
+            try (var conexao = banco.config.abrir()) {
+                var restrita = (java.sql.Connection) java.lang.reflect.Proxy.newProxyInstance(
+                        TesteEp2.class.getClassLoader(), new Class<?>[] {java.sql.Connection.class}, (proxy, metodo, args) -> {
+                            Object retorno = delegar(metodo, conexao, args);
+                            if (!metodo.getName().equals("createStatement")) return retorno;
+                            return java.lang.reflect.Proxy.newProxyInstance(TesteEp2.class.getClassLoader(),
+                                    new Class<?>[] {java.sql.Statement.class}, (p, m, a) -> {
+                                        if (a != null && a.length > 0 && a[0] instanceof String sql
+                                                && sql.startsWith(operacao) && sql.contains("`usuarios`")) {
+                                            throw new java.sql.SQLException("MENSAGEM_BRUTA_NAO_DEVE_VAZAR", "42000", 1142);
+                                        }
+                                        return delegar(m, retorno, a);
+                                    });
+                        });
+                try {
+                    VerificacaoBancoMySql.conferir(restrita);
+                    throw new AssertionError("Diagnostico aceitou permissao ausente: " + operacao);
+                } catch (VerificacaoBancoMySql.FalhaPreparacao e) {
+                    ok(e.getMessage().contains("usuarios / " + operacao), "Diagnostico aponta tabela e permissao: " + operacao);
+                    ok(!e.getMessage().contains("MENSAGEM_BRUTA"), "Diagnostico nao imprime mensagens/valores brutos do driver");
+                }
+            }
+        }
+        for (var falha : List.of(new java.sql.SQLException("SEGREDO", "42S02", 1146),
+                new java.sql.SQLException("SEGREDO", "28000", 1045), new java.sql.SQLException("SEGREDO", "42000", 1049))) {
+            ok(!VerificacaoBancoMySql.explicar(falha).contains("SEGREDO"), "Falhas de schema/autenticacao sao sanitizadas");
+        }
+        ok(antes.equals(Protocolo.GSON.toJson(banco.repositorio.carregar())), "Falhas do diagnostico tambem preservam os dados");
+    }
+
+    private static Object delegar(java.lang.reflect.Method metodo, Object alvo, Object[] args) throws Throwable {
+        try { return metodo.invoke(alvo, args); }
+        catch (java.lang.reflect.InvocationTargetException e) { throw e.getCause(); }
     }
 
     private static void concorrencia(String admin, String usuario, String data) throws Exception {

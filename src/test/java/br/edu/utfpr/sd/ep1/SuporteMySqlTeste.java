@@ -1,6 +1,7 @@
 package br.edu.utfpr.sd.ep1;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -14,8 +15,19 @@ final class SuporteMySqlTeste implements AutoCloseable {
 
     SuporteMySqlTeste(String[] args) throws IOException, SQLException {
         arquivo = Path.of(args.length == 0 ? System.getProperty("ep2.mysql.config", "config/mysql-test.properties") : args[0]);
+        if (!Files.isRegularFile(arquivo))
+            throw new IOException("Configuracao de testes ausente: " + arquivo
+                    + ". Copie config/mysql-test.properties.example para o arquivo local e solicite a preparacao"
+                    + " separada de ep1_reserva_salas_teste a quem ja tem permissao no banco."
+                    + " Nenhum banco, usuario ou permissao sera criado automaticamente.");
         config = ConfiguracaoMySql.carregar(arquivo);
-        trava = config.abrir();
+        try { trava = config.abrir(); }
+        catch (SQLException e) {
+            if (e.getErrorCode() == 1049)
+                throw new SQLException("Banco de testes ausente. Solicite a preparacao separada de ep1_reserva_salas_teste"
+                        + " conforme README; testes nao fazem provisionamento automatico.", e.getSQLState(), e.getErrorCode());
+            throw e;
+        }
         try {
             if (!"ep1_reserva_salas_teste".equals(trava.getCatalog()))
                 throw new SQLException("Testes exigem ep1_reserva_salas_teste; dados da aplicacao protegidos");
