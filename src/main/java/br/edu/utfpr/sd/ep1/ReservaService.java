@@ -13,7 +13,8 @@ final class ReservaService {
     ReservaService(Clock clock) { this.clock = clock; }
 
     JsonObject executar(Banco b, JsonObject req, Banco.Usuario autor, boolean admin) {
-        String op = Protocolo.string(req, "op"), data = Protocolo.string(req, "date");
+        String op = Protocolo.string(req, "op");
+        String data = op.equals("create_reservation") || op.equals("list_reservations") ? Protocolo.string(req, "date") : null;
         if (data != null && !SalaService.dataValida(data)) return resposta(op, "400", Contrato.erroFormato(op));
         if (op.equals("list_reservations")) {
             boolean todas = "all".equals(Protocolo.string(req, "scope"));

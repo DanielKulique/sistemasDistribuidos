@@ -37,14 +37,14 @@ Ambiente: OpenJDK 25 compilando com `--release 17`, MySQL **8.4.11** real via TC
 | TesteComunicacao | Arquivo, sockets e servidores simulados | 33 casos, 342 verificações, zero falhas |
 | TesteGui | Memória + sockets reais + Swing | 45 verificações aprovadas |
 | TesteAplicacao | MySQL real + entrada integrada + Swing | Inicialização, cadastro TCP, persistência e encerramento aprovados |
-| TesteEp2 | MySQL real + sockets + dois servidores/processos | 176 verificações aprovadas |
+| TesteEp2 | MySQL real + sockets + dois servidores/processos | 180 verificações aprovadas |
 | TesteGuiEp2 | MySQL real + formulários Swing + TCP | 22 verificações aprovadas |
 | Testador oficial do commit fixado | MySQL real + servidor Java | **86 passaram, zero falhas, zero pulados** |
-| Ajv independente sobre capturas EP-2 | YAML oficial dereferenciado | 77 respostas conformes; 1 exceção de capacidade autorizada |
+| Ajv independente sobre capturas EP-2 | YAML oficial dereferenciado | 79 respostas conformes; 1 exceção de capacidade autorizada |
 | Terminal/Ant e JAR | Classpath real | Compilação, recursos e empacotamento aprovados |
 | Execução normal com config/mysql.properties | MySQL da aplicação | Login admin, administração no console, consulta de salas e logout aprovados |
 
-Total das baterias Java com contador: **810 verificações**, além do teste integrado da aplicação e dos 86 testes oficiais.
+Total das baterias Java com contador: **814 verificações**, além do teste integrado da aplicação e dos 86 testes oficiais.
 
 A bateria MySQL testa: bootstrap concorrente; permissões por token; promoção/rebaixamento sem relogar; proteção do último admin; campos proibidos; CRUD e slots inválidos; disponibilidade por data; privacidade da agenda; exclusão de dependências; expiração e logout; rollback após uma escrita SQL seguida de erro; FK de sessões; criação/atualização/exclusão de salas e reservas concorrentes entre servidores; reinício de um processo Java conservando tokens e dados. A regressão cobre framing, limites, UTF-8, JSON inválido, respostas malformadas, retransmissão, falha de persistência e fluxo do console.
 

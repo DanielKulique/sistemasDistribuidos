@@ -95,13 +95,15 @@ final class PainelOperacoes extends JPanel {
         JsonArray linhas = null;
         for (String lista : new String[] {"users", "rooms", "reservations", "agenda"}) if (res.has(lista)) linhas = res.getAsJsonArray(lista);
         StringBuilder texto = new StringBuilder(detalhes.getText());
-        for (var campo : res.entrySet()) if (!List.of("op", "status", "message").contains(campo.getKey()) && !campo.getValue().isJsonArray())
+        for (var campo : res.entrySet()) if (!List.of("op", "status", "message").contains(campo.getKey())
+                && Contrato.DOCUMENTO.getAsJsonObject("schemas").has(campo.getKey()) && campo.getValue().isJsonPrimitive())
             texto.append("\n").append(OperacoesCliente.rotulo(campo.getKey())).append(": ").append(campo.getValue().getAsString());
         detalhes.setText(texto.toString());
         if (linhas == null) { linhas = new JsonArray(); JsonObject dado = res.deepCopy();
             dado.remove("op"); dado.remove("status"); dado.remove("message"); linhas.add(dado); }
         var colunas = new java.util.LinkedHashSet<String>();
         linhas.forEach(l -> colunas.addAll(l.getAsJsonObject().keySet()));
+        colunas.removeIf(c -> !Contrato.DOCUMENTO.getAsJsonObject("schemas").has(c));
         List<String> chaves = new ArrayList<>(colunas);
         DefaultTableModel modelo = new DefaultTableModel(chaves.stream().map(OperacoesCliente::rotulo).toArray(), 0) {
             private static final long serialVersionUID = 1L;
@@ -110,8 +112,10 @@ final class PainelOperacoes extends JPanel {
         for (var linha : linhas) modelo.addRow(chaves.stream().map(c -> {
             var valor = linha.getAsJsonObject().get(c);
             if (valor == null) return "";
-            if (valor.isJsonArray()) return String.join(", ", SalaService.lista(valor.getAsJsonArray()));
-            return valor.getAsString();
+            if (valor.isJsonArray() && java.util.stream.StreamSupport.stream(valor.getAsJsonArray().spliterator(), false)
+                    .allMatch(v -> v.isJsonPrimitive() && v.getAsJsonPrimitive().isString()))
+                return String.join(", ", SalaService.lista(valor.getAsJsonArray()));
+            return valor.isJsonPrimitive() ? valor.getAsString() : "";
         }).toArray());
         tabela.setModel(modelo);
     }

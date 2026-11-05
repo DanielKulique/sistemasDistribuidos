@@ -147,6 +147,7 @@ public final class TesteEp2 {
         chamar(sala("create_room", admin, null, "Sala A", "6", null, "2M1", "2M1"), "400");
         JsonObject cadastro = sala("create_room", admin, null, "Sala A", "6", null, "2M1", "2M2", "2M3", "3T1");
         cadastro.getAsJsonArray("resources").add("projeção");
+        cadastro.addProperty("date", "campo desconhecido"); cadastro.addProperty("start_time", "ignorado");
         String id = Protocolo.string(chamar(cadastro, "201"), "room_id");
         chamar(cadastro, "409");
         chamar(req("read_room", beta, "room_id", "999999"), "404");
@@ -154,6 +155,7 @@ public final class TesteEp2 {
         JsonObject leitura = chamar(req("read_room", beta, "room_id", id, "date", data), "200");
         ok(leitura.getAsJsonArray("agenda").size() == 3, "Agenda ordenada por dia e aula");
         ok(leitura.getAsJsonArray("resources").get(0).getAsString().equals("projeção"), "Recursos UTF-8 persistidos sem perda");
+        chamar(req("read_room", beta, "room_id", id, "start_time", "ignorado"), "200");
         chamar(req("read_room", beta, "room_id", id, "date", "2026-02-30"), "400");
         JsonObject livre = chamar(req("list_rooms", beta), "200");
         ok(!livre.getAsJsonArray("rooms").get(0).getAsJsonObject().has("available"), "Consulta sem periodo omite disponibilidade");
@@ -166,6 +168,7 @@ public final class TesteEp2 {
         chamar(reserva(beta, id, data, "10:20", "11:10"), "409");
         chamar(req("read_reservation", beta, "reservation_id", reserva), "403");
         chamar(req("read_reservation", admin, "reservation_id", reserva), "200");
+        chamar(req("read_reservation", admin, "reservation_id", reserva, "date", "campo desconhecido"), "200");
         chamar(req("list_reservations", beta, "scope", "all"), "403");
         chamar(req("list_reservations", admin, "scope", "all", "room_id", id), "200");
         JsonObject agenda = chamar(req("read_room", beta, "room_id", id, "date", data), "200");

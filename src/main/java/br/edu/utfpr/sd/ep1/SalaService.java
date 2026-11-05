@@ -79,9 +79,12 @@ final class SalaService {
     }
 
     JsonObject executar(Banco b, JsonObject req, Banco.Usuario autor, boolean admin) {
-        String op = Protocolo.string(req, "op"), data = Protocolo.string(req, "date");
-        String inicio = Protocolo.string(req, "start_time"), fim = Protocolo.string(req, "end_time");
-        if ((req.has("date") && !dataValida(data)) || (req.has("start_time") && !periodoValido(inicio, fim)))
+        String op = Protocolo.string(req, "op");
+        var campos = Contrato.DOCUMENTO.getAsJsonObject("messages").getAsJsonObject(op).getAsJsonObject("properties");
+        String data = campos.has("date") ? Protocolo.string(req, "date") : null;
+        String inicio = campos.has("start_time") ? Protocolo.string(req, "start_time") : null;
+        String fim = campos.has("end_time") ? Protocolo.string(req, "end_time") : null;
+        if ((data != null && !dataValida(data)) || (inicio != null && !periodoValido(inicio, fim)))
             return resposta(op, "400", Contrato.erroFormato(op));
         if (op.equals("create_room")) {
             String nome = Protocolo.string(req, "name");
